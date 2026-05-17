@@ -4,13 +4,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { ArrowRight, Box, Lock, Mail } from "lucide-react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useRouter } from "expo-router";
+import { useLogin } from "../../src/hooks/useLogin";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  const handleEnter = () => {};
+  const { email, setEmail, password, setPassword, errors, handleEnter } = useLogin();
 
   return (
     <LinearGradient
@@ -49,8 +47,10 @@ export default function LoginScreen() {
         <View className="gap-4">
           <View>
             <Text className="text-white font-semibold mb-2 ml-1">E-mail</Text>
-            <View className="h-14 bg-slate-800 border border-slate-700 rounded-2xl flex-row items-center px-4">
-              <Mail size={20} color="#64748b" />
+            <View 
+              className={`h-14 bg-slate-800 border ${errors.email ? 'border-red-500' : 'border-slate-700'} rounded-2xl flex-row items-center px-4`}
+            >
+              <Mail size={20} color={errors.email ? "#EF4444" : "#64748b"} />
               <TextInput
                 value={email}
                 onChangeText={setEmail}
@@ -61,12 +61,17 @@ export default function LoginScreen() {
                 className="flex-1 text-white ml-3 text-base"
               />
             </View>
+            {errors.email ? (
+              <Text className="text-red-500 text-sm mt-1 ml-1 font-medium">{errors.email}</Text>
+            ) : null}
           </View>
 
           <View>
             <Text className="text-white font-semibold mb-2 ml-1">Senha</Text>
-            <View className="h-14 bg-slate-800 border border-slate-700 rounded-2xl flex-row items-center px-4">
-              <Lock size={20} color="#64748b" />
+            <View 
+              className={`h-14 bg-slate-800 border ${errors.password ? 'border-red-500' : 'border-slate-700'} rounded-2xl flex-row items-center px-4`}
+            >
+              <Lock size={20} color={errors.password ? "#EF4444" : "#64748b"} />
               <TextInput
                 value={password}
                 onChangeText={setPassword}
@@ -77,6 +82,10 @@ export default function LoginScreen() {
                 className="flex-1 text-white ml-3 text-base"
               />
             </View>
+            {errors.password ? (
+              <Text className="text-red-500 text-sm mt-1 ml-1 font-medium">{errors.password}</Text>
+            ) : null}
+            
             <TouchableOpacity
               className="self-end mt-3"
               onPress={() => router.push("/password")}
@@ -90,7 +99,7 @@ export default function LoginScreen() {
 
         <TouchableOpacity
           className="bg-orange-500 rounded-2xl h-14 mt-8 flex-row justify-center items-center"
-          onPress={() => handleEnter}
+          onPress={handleEnter}
           style={{
             shadowColor: "#FF7300",
             shadowOpacity: 0.35,

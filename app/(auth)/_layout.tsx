@@ -1,9 +1,8 @@
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import '../global.css';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
-export default function RootLayout() {
+export default function AuthLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style="light" />
@@ -14,8 +13,9 @@ export default function RootLayout() {
           animation: "fade_from_bottom",
         }}
       >
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="index" />
+        <Stack.Screen name="register" />
+        <Stack.Screen name="password" />
       </Stack>
     </GestureHandlerRootView>
   );
