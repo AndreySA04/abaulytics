@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
+import { validateUser } from '../database/userRepository';
 
 export const useLogin = () => {
   const router = useRouter();
@@ -8,24 +9,22 @@ export const useLogin = () => {
   const [errors, setErrors] = useState({ email: "", password: "" });
 
   const validate = () => {
-    let isValid = true;
+    let isValid = false;
     let newErrors = { email: "", password: "" };
 
     if (!email.trim()) {
       newErrors.email = "O e-mail é obrigatório.";
-      isValid = false;
     } else if (!/\S+@\S+\.\S+/.test(email)) {
       newErrors.email = "Digite um e-mail válido.";
-      isValid = false;
     }
 
     if (!password) {
       newErrors.password = "A senha é obrigatória.";
-      isValid = false;
     } else if (password.length < 6) {
       newErrors.password = "A senha deve ter no mínimo 6 caracteres.";
-      isValid = false;
     }
+
+    if(validateUser({ email, password }) !== null) isValid = true;
 
     setErrors(newErrors);
     return isValid;

@@ -7,9 +7,8 @@ import { ArrowLeft, ArrowRight, Lock, Mail, User } from "lucide-react-native";
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const { email, setEmail, password, setPassword, errors, handleEnter } = useRegister();
+
 
   return (
     <LinearGradient
