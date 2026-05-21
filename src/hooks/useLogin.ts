@@ -8,7 +8,7 @@ export const useLogin = () => {
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({ email: "", password: "" });
 
-  const validate = () => {
+  const validate = async () => {
     let isValid = false;
     let newErrors = { email: "", password: "" };
 
@@ -24,16 +24,21 @@ export const useLogin = () => {
       newErrors.password = "A senha deve ter no mínimo 6 caracteres.";
     }
 
-    if(validateUser({ email, password }) !== null) isValid = true;
+    const user = await validateUser({ email, password });
+    if (user !== null){
+      isValid = true;
+    }
 
     setErrors(newErrors);
     return isValid;
   };
 
   const handleEnter = () => {
-    if (validate()) {
-      router.replace('/(tabs)');
-    }
+    validate().then((isValid) => {
+      if (isValid) {
+        router.replace('/(tabs)');
+      }
+    });
   };
 
   return {

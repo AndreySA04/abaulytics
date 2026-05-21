@@ -10,26 +10,30 @@ export const useRegister = () =>{
     const [errors, setErrors] = useState({ name: "", email: "", password: "" });
 
     const register = () =>{
+        let pass = true;
         let newErrors = {name: "", email: "", password: ""};
 
         if(name === "" || email === "" || password === ""){
             if(name === "") newErrors.name = "O nome é obrigatório.";
             if(email === "") newErrors.email = "O e-mail é obrigatório.";
             if(password === "") newErrors.password = "A senha é obrigatória.";
+            pass = false;
         }
 
         if(password.length > 0 && password.length < 6){
             newErrors.password = "A senha deve conter no mínimo 6 caracteres.";
+            pass = false;
         }
         
         if(email.length > 0 && !/\S+@\S+\.\S+/.test(email)){
             newErrors.email = "Digite um e-mail válido.";
+            pass = false;
         }
 
-        saveUser({ name, email, password });
+        if(pass) saveUser({ name, email, password });
 
         setErrors(newErrors);
-        return false;
+        return pass;
     }
 
     const handleEnter = () => {

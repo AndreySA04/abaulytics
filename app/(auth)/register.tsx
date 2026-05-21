@@ -97,6 +97,7 @@ export default function RegisterScreen() {
         <TouchableOpacity
           className="bg-orange-500 rounded-2xl h-14 mt-10 flex-row justify-center items-center"
           style={{ elevation: 8 }}
+          onPress={handleEnter}
         >
           <Text className="text-white text-lg font-bold mr-2">Criar Conta</Text>
           <ArrowRight size={20} color="white" />
