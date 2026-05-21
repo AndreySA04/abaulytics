@@ -4,11 +4,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useRouter } from "expo-router";
 import { ArrowLeft, ArrowRight, Lock, Mail, User } from "lucide-react-native";
+import { useRegister } from "../../src/hooks/useRegister";
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { email, setEmail, password, setPassword, errors, handleEnter } = useRegister();
-
+  const { name, setName, email, setEmail, password, setPassword, errors, handleEnter } = useRegister();
 
   return (
     <LinearGradient
