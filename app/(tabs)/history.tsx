@@ -4,6 +4,7 @@ import { Search, FileText } from 'lucide-react-native';
 import { useMeasurements } from '../../src/hooks/useMeasurements';
 import { FilterBar } from '../../src/components/FilterBar';
 import { MeasurementList } from '../../src/components/EmptyState';
+import { getAnalysesByUserId } from '../../src/database/analysesRepository';
 
 export default function HistoryScreen() {
   const {

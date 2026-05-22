@@ -1,6 +1,7 @@
 import {getDatabase} from './database';
 import {User, SaveUserInput, ValidateUserInput} from '../types/user';
 
+
 export async function getId(): Promise<User[]> {
     const db = await getDatabase();
     return db.getAllAsync<User>("SELECT id FROM users");

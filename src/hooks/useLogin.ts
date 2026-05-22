@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { validateUser } from '../database/userRepository';
+import * as SecureStore from 'expo-secure-store';
 
 export const useLogin = () => {
   const router = useRouter();
@@ -25,6 +26,7 @@ export const useLogin = () => {
     }
 
     const user = await validateUser({ email, password });
+    await SecureStore.setItemAsync('userId', String(user?.id));
     if (user !== null){
       isValid = true;
     }

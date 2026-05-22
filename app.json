@@ -32,9 +32,10 @@
       [
         "expo-camera",
         {
-          "cameraPermission":"O app precisa acessar a câmera para medir o abauloamento das chapas."
+          "cameraPermission": "O app precisa acessar a câmera para medir o abauloamento das chapas."
         }
-      ]
+      ],
+      "expo-secure-store"
     ]
   }
 }
