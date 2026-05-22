@@ -55,6 +55,7 @@ async def analisar_chapa(file: UploadFile = File(...)):
         
         # A partir daqui, o algoritmo SÓ enxerga o retângulo ultra-seguro do meio
         img_roi = img[y_start:y_end, x_start:x_end]
+        
         # 1. PREPARAÇÃO DA IMAGEM
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         

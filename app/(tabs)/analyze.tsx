@@ -1,22 +1,20 @@
 import React, { useRef, useState } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from "react-native";
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons"; // Importamos um ícone real para a UI
+import { salvarNoBanco } from "../../src/database/analysesRepository";
 
 export default function AnalisarCaixaScreen() {
-  const router = useRouter();
-  // 1. Hook obrigatório para gerenciar as permissões
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<any>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [resultado, setResultado] = useState<string | null>(null);
 
-  // Enquanto verifica a permissão, não renderiza nada para evitar flashes
   if (!permission) {
     return <View className="flex-1 bg-[#0f172a]" />;
   }
 
-  // Se não tem permissão, mostra a tela para solicitar
   if (!permission.granted) {
     return (
       <View className="flex-1 bg-[#0f172a] justify-center items-center px-6">
@@ -38,26 +36,20 @@ export default function AnalisarCaixaScreen() {
 
     setIsCapturing(true);
     try {
-      // 2. Dispara a captura
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.7, // 0.7 é ideal para equilibrar qualidade e tamanho de rede
-        base64: false, // Mantemos false para enviar o arquivo via FormData para a API
+        quality: 0.7,
+        base64: false,
       });
-      
-      uploadImage(photo.uri); // Envia a foto para a API FastAPI
 
       console.log("Foto capturada com sucesso!", photo.uri);
       
-      // TODO: Enviar photo.uri para o seu backend FastAPI
+      uploadImage(photo.uri);
       
     } catch (error) {
       console.error("Erro na captura:", error);
-    } finally {
-      setIsCapturing(false);
     }
   };
 
-  // Exemplo da função que envia a foto capturada
   const uploadImage = async (photoUri: string) => {
     const formData = new FormData();
     formData.append('file', {
@@ -68,7 +60,7 @@ export default function AnalisarCaixaScreen() {
 
     try {
       // Substitua pelo IPv4 do seu computador na rede Wi-Fi
-      const url = 'http://192.168.0.218:8000/api/analisar-chapa'; 
+      const url = 'http://192.168.15.8:8000/api/analisar-chapa'; 
       
       const response = await fetch(url, {
         method: 'POST',
@@ -78,10 +70,40 @@ export default function AnalisarCaixaScreen() {
       
       const json = await response.json();
       console.log("Resultado:", json);
+
+      const resultadoString = JSON.stringify(json, null, 2);
+      
+      await salvarNoBanco(resultadoString); 
+      
+      setResultado(resultadoString);
     } catch (err) {
       console.error("Erro na API", err);
+    }finally {
+      setIsCapturing(false);
     }
   };
+  if (resultado) {
+    return (
+      <View className="flex-1 bg-[#0f172a] pt-16 px-6">
+        <Text className="text-white text-2xl font-bold mb-6">Resultado da Análise</Text>
+        
+        <View className="flex-1 bg-slate-800 rounded-2xl p-4 mb-6">
+          <ScrollView>
+            <Text className="text-slate-300 font-mono">
+              {resultado}
+            </Text>
+          </ScrollView>
+        </View>
+
+        <TouchableOpacity 
+          onPress={() => setResultado(null)}
+          className="bg-orange-500 py-4 rounded-xl mb-10 items-center"
+        >
+          <Text className="text-white font-bold text-lg">Nova Análise</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-[#0f172a]">
