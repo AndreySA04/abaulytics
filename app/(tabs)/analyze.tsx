@@ -44,6 +44,8 @@ export default function AnalisarCaixaScreen() {
         base64: false, // Mantemos false para enviar o arquivo via FormData para a API
       });
       
+      uploadImage(photo.uri); // Envia a foto para a API FastAPI
+
       console.log("Foto capturada com sucesso!", photo.uri);
       
       // TODO: Enviar photo.uri para o seu backend FastAPI
@@ -52,6 +54,32 @@ export default function AnalisarCaixaScreen() {
       console.error("Erro na captura:", error);
     } finally {
       setIsCapturing(false);
+    }
+  };
+
+  // Exemplo da função que envia a foto capturada
+  const uploadImage = async (photoUri: string) => {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: photoUri,
+      name: 'chapa.jpg',
+      type: 'image/jpeg',
+    } as any);
+
+    try {
+      // Substitua pelo IPv4 do seu computador na rede Wi-Fi
+      const url = 'http://192.168.0.218:8000/api/analisar-chapa'; 
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      
+      const json = await response.json();
+      console.log("Resultado:", json);
+    } catch (err) {
+      console.error("Erro na API", err);
     }
   };
 
