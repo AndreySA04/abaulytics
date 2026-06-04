@@ -1,10 +1,10 @@
 import { View, Text, FlatList } from "react-native";
-import { MeasurementRecord } from "../types/measurement";
 import { FolderOpen } from "lucide-react-native";
 import { MeasurementItem } from "./MeasurementItem";
+import { Analise } from "../types/analyses";
 
 interface MeasurementListProps {
-  data: MeasurementRecord[];
+  data: Analise[];
 }
 
 export const MeasurementList = ({ data }: MeasurementListProps) => {
@@ -20,7 +20,7 @@ export const MeasurementList = ({ data }: MeasurementListProps) => {
   return (
     <FlatList
       data={data}
-      keyExtractor={(item) => item.id}
+      keyExtractor={(item) => String(item.id)}
       renderItem={({ item }) => <MeasurementItem item={item} />}
       contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
       showsVerticalScrollIndicator={false}

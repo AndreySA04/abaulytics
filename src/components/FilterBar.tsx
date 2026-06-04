@@ -9,7 +9,7 @@ interface FilterBarProps {
 
 export const FilterBar = ({ selectedStatus, setSelectedStatus }: FilterBarProps) => {
   return (
-    <View className="h-12 mt-6 mb-4">
+    <View className="h-12 mt-4 mb-4">
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}>
         <TouchableOpacity 
           onPress={() => setSelectedStatus('Todos')}

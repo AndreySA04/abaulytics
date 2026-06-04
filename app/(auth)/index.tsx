@@ -1,14 +1,42 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ArrowRight, Box, Lock, Mail } from "lucide-react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useRouter } from "expo-router";
 import { useLogin } from "../../src/hooks/useLogin";
+import Toast from 'react-native-toast-message';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { email, setEmail, password, setPassword, errors, handleEnter } = useLogin();
+  
+  const [isLoading, setIsLoading] = useState(false);
+
+  const onLoginPress = async () => {
+    setIsLoading(true);
+    try {
+      const success = await handleEnter(); 
+      
+      if (success === false) {
+        showErrorToast();
+      }
+    } catch (error) {
+      showErrorToast();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const showErrorToast = () => {
+    Toast.show({
+      type: 'error',
+      text1: 'Falha no login',
+      text2: 'O e-mail ou senha estão incorretos.',
+      position: 'bottom',
+      visibilityTime: 4000,
+    });
+  };
 
   return (
     <LinearGradient
@@ -48,9 +76,9 @@ export default function LoginScreen() {
           <View>
             <Text className="text-white font-semibold mb-2 ml-1">E-mail</Text>
             <View 
-              className={`h-14 bg-slate-800 border ${errors.email ? 'border-red-500' : 'border-slate-700'} rounded-2xl flex-row items-center px-4`}
+              className={`h-14 bg-slate-800 border ${errors?.email ? 'border-red-500' : 'border-slate-700'} rounded-2xl flex-row items-center px-4`}
             >
-              <Mail size={20} color={errors.email ? "#EF4444" : "#64748b"} />
+              <Mail size={20} color={errors?.email ? "#EF4444" : "#64748b"} />
               <TextInput
                 value={email}
                 onChangeText={setEmail}
@@ -58,10 +86,11 @@ export default function LoginScreen() {
                 placeholderTextColor="#64748b"
                 keyboardType="email-address"
                 autoCapitalize="none"
+                editable={!isLoading}
                 className="flex-1 text-white ml-3 text-base"
               />
             </View>
-            {errors.email ? (
+            {errors?.email ? (
               <Text className="text-red-500 text-sm mt-1 ml-1 font-medium">{errors.email}</Text>
             ) : null}
           </View>
@@ -69,9 +98,9 @@ export default function LoginScreen() {
           <View>
             <Text className="text-white font-semibold mb-2 ml-1">Senha</Text>
             <View 
-              className={`h-14 bg-slate-800 border ${errors.password ? 'border-red-500' : 'border-slate-700'} rounded-2xl flex-row items-center px-4`}
+              className={`h-14 bg-slate-800 border ${errors?.password ? 'border-red-500' : 'border-slate-700'} rounded-2xl flex-row items-center px-4`}
             >
-              <Lock size={20} color={errors.password ? "#EF4444" : "#64748b"} />
+              <Lock size={20} color={errors?.password ? "#EF4444" : "#64748b"} />
               <TextInput
                 value={password}
                 onChangeText={setPassword}
@@ -79,16 +108,18 @@ export default function LoginScreen() {
                 placeholderTextColor="#64748b"
                 secureTextEntry
                 autoCapitalize="none"
+                editable={!isLoading}
                 className="flex-1 text-white ml-3 text-base"
               />
             </View>
-            {errors.password ? (
+            {errors?.password ? (
               <Text className="text-red-500 text-sm mt-1 ml-1 font-medium">{errors.password}</Text>
             ) : null}
             
             <TouchableOpacity
               className="self-end mt-3"
               onPress={() => router.push("/password")}
+              disabled={isLoading}
             >
               <Text className="text-orange-500 font-semibold">
                 Esqueceu a senha?
@@ -98,8 +129,9 @@ export default function LoginScreen() {
         </View>
 
         <TouchableOpacity
-          className="bg-orange-500 rounded-2xl h-14 mt-8 flex-row justify-center items-center"
-          onPress={handleEnter}
+          className={`bg-orange-500 rounded-2xl h-14 mt-8 flex-row justify-center items-center ${isLoading ? 'opacity-80' : 'opacity-100'}`}
+          onPress={onLoginPress}
+          disabled={isLoading}
           style={{
             shadowColor: "#FF7300",
             shadowOpacity: 0.35,
@@ -107,13 +139,19 @@ export default function LoginScreen() {
             elevation: 8,
           }}
         >
-          <Text className="text-white text-lg font-bold mr-2">Entrar</Text>
-          <ArrowRight size={20} color="white" />
+          {isLoading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <>
+              <Text className="text-white text-lg font-bold mr-2">Entrar</Text>
+              <ArrowRight size={20} color="white" />
+            </>
+          )}
         </TouchableOpacity>
 
         <View className="flex-row justify-center mt-8 mb-6">
           <Text className="text-slate-400 text-base">Não tem uma conta? </Text>
-          <TouchableOpacity onPress={() => router.push("/register")}>
+          <TouchableOpacity onPress={() => router.push("/register")} disabled={isLoading}>
             <Text className="text-orange-500 font-semibold text-base">
               Solicite acesso
             </Text>

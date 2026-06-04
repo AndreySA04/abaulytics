@@ -35,7 +35,8 @@
           "cameraPermission": "O app precisa acessar a câmera para medir o abauloamento das chapas."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-sharing"
     ]
   }
 }

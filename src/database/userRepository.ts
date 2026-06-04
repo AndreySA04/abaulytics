@@ -7,10 +7,12 @@ export async function getId(): Promise<User[]> {
     return db.getAllAsync<User>("SELECT id FROM users");
 }
 
-export async function getProfile(): Promise<User | null> {
+export async function getProfile(userId: string | null): Promise<User | null> {
     const db = await getDatabase();
+    
+    if (!userId) return null;
 
-    return db.getFirstAsync<User>("SELECT * FROM users LIMIT 1");
+    return db.getFirstAsync<User>("SELECT * FROM users WHERE id = ?", [userId]);
 }
 
 export async function validateUser(input: ValidateUserInput): Promise<User | null> {
