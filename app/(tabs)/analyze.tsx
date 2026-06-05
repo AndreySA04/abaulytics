@@ -1,9 +1,9 @@
 import React, { useRef, useState } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons"; // Importamos um ícone real para a UI
+import { Ionicons } from "@expo/vector-icons";
 import { salvarNoBanco } from "../../src/database/analysesRepository";
+import { CheckCircle2, RefreshCcw } from "lucide-react-native";
 
 export default function AnalisarCaixaScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -14,6 +14,15 @@ export default function AnalisarCaixaScreen() {
   if (!permission) {
     return <View className="flex-1 bg-[#0f172a]" />;
   }
+
+  const PX_TO_MM_RATIO = 0.264583;
+
+  const getAnalysisDetails = (resultado: string) => {
+    const pxValue = parseFloat(resultado) || 0;
+    const mm = pxValue * PX_TO_MM_RATIO;
+    
+    return mm;
+  };
 
   if (!permission.granted) {
     return (
@@ -85,21 +94,40 @@ export default function AnalisarCaixaScreen() {
   if (resultado) {
     return (
       <View className="flex-1 bg-[#0f172a] pt-16 px-6">
-        <Text className="text-white text-2xl font-bold mb-6">Resultado da Análise</Text>
+        <View className="items-center mb-8 mt-4">
+          <View className="bg-green-500/20 p-4 rounded-full mb-4">
+            <CheckCircle2 size={48} color="#22c55e" />
+          </View>
+          <Text className="text-white text-2xl font-bold">Análise Concluída</Text>
+          <Text className="text-slate-400 text-base mt-2 text-center">
+            Medição realizada e salva com sucesso.
+          </Text>
+        </View>
         
-        <View className="flex-1 bg-slate-800 rounded-2xl p-4 mb-6">
-          <ScrollView>
-            <Text className="text-slate-300 font-mono">
-              {resultado}
+        <View className="flex-1 bg-[#1e293b] rounded-3xl p-6 mb-6 border border-[#334155] shadow-lg justify-center items-center">
+          <View className="bg-slate-800/50 px-4 py-2 rounded-full mb-6">
+            <Text className="text-slate-300 font-bold uppercase tracking-widest text-sm">
+              Abaulamento
             </Text>
-          </ScrollView>
+          </View>
+
+          <View className="flex-row items-end justify-center">
+            <Text className="text-white text-[72px] font-black tracking-tighter" style={{ color: '#f97316' }}>
+              {getAnalysisDetails(resultado)}
+            </Text>
+            <Text className="text-slate-400 text-2xl font-bold ml-2 mb-4">
+              mm
+            </Text>
+          </View>
         </View>
 
         <TouchableOpacity 
           onPress={() => setResultado(null)}
-          className="bg-orange-500 py-4 rounded-xl mb-10 items-center"
+          className="bg-orange-500 flex-row justify-center items-center py-4 rounded-2xl mb-10 shadow-lg shadow-orange-500/30"
+          activeOpacity={0.8}
         >
-          <Text className="text-white font-bold text-lg">Nova Análise</Text>
+          <RefreshCcw size={20} color="white" className="mr-2" />
+          <Text className="text-white font-bold text-lg ml-2">Nova Análise</Text>
         </TouchableOpacity>
       </View>
     );
