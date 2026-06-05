@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity } from "react-native";
 import {
   Package,
@@ -9,21 +9,25 @@ import {
   User,
   Inbox,
 } from "lucide-react-native";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Analise } from "../../src/types/analyses";
 import * as SecureStore from 'expo-secure-store';
 import { getAnalysesCountToday, getCriticalAnalysesCountToday, getRecentAnalyses } from "../../src/database/analysesRepository";
 import { getProfile } from "../../src/database/userRepository";
 
-const PX_TO_MM_RATIO = 0.264583;
+const PX_TO_MM_RATIO = 0.163453;
 
-const getAnalysisDetails = (resultado: string) => {
-  const pxValue = parseFloat(resultado) || 0;
-  const mm = pxValue * PX_TO_MM_RATIO;
-  
-  if (mm <= 3) return { status: 'success', value: mm };
-  if (mm > 3 && mm <= 5) return { status: 'warning', value: mm };
-  return { status: 'critical', value: mm };
+const getAnalysisDetails = (resultadoString: string) => {
+  try {
+    const data = JSON.parse(resultadoString);
+    const pxValue = data.abaulamento_px || 0;
+    const mm = pxValue * PX_TO_MM_RATIO;
+    
+    return { status: data.status, value: mm, id_medicao: data.id_medicao };
+  } catch (error) {
+    console.error("Erro ao ler resultado:", error);
+    return { status: 'success', value: 0, id_medicao: null };
+  }
 };
 
 const getFormattedCurrentDate = () => {
@@ -56,34 +60,37 @@ export default function HomeScreen() {
   const [userName, setUserName] = useState<string>('');
   const [userInitials, setUserInitials] = useState<string>('');
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const userId = await SecureStore.getItemAsync('userId');
-        
-        if (userId) {
-          const [userProfile, count, critical, recent] = await Promise.all([
-            getProfile(userId),
-            getAnalysesCountToday(userId),
-            getCriticalAnalysesCountToday(userId),
-            getRecentAnalyses(userId)
-          ]);
+  useFocusEffect(
+    useCallback(() => {
+      const fetchDashboardData = async () => {
+        try {
+          const userId = await SecureStore.getItemAsync('userId');
           
-          if (userProfile && userProfile.name) {
-            setUserName(userProfile.name);
-            setUserInitials(getInitials(userProfile.name));
+          if (userId) {
+            const [userProfile, count, critical, recent] = await Promise.all([
+              getProfile(userId),
+              getAnalysesCountToday(userId),
+              getCriticalAnalysesCountToday(userId),
+              getRecentAnalyses(userId)
+            ]);
+            
+            if (userProfile && userProfile.name) {
+              setUserName(userProfile.name);
+              setUserInitials(getInitials(userProfile.name));
+            }
+
+            setTodayCount(count);
+            setCriticalCount(critical);
+            setRecentActivities(recent);
           }
-
-          setTodayCount(count);
-          setRecentActivities(recent);
+        } catch (error) {
+          console.error("Erro ao buscar dados da dashboard:", error);
         }
-      } catch (error) {
-        console.error("Erro ao buscar dados da dashboard:", error);
-      }
-    };
+      };
 
-    fetchDashboardData();
-  }, []);
+      fetchDashboardData();
+    }, [])
+  );
 
   const handleLogout = () => {
     setProfileMenuOpen(false);
@@ -201,11 +208,16 @@ export default function HomeScreen() {
             </View>
           ) : (
             recentActivities.map((item) => {
-              const details = getAnalysisDetails(item.resultado);
-              const isSuccess = details.status === "success";
-              const isWarning = details.status === "warning";
-              
-              const dateObj = new Date(item.created_at);
+              const details = getAnalysisDetails(item.result);
+
+              const isSuccess = details.status === "sucesso";
+              const isWarning = details.status === "atencao";
+
+              const safeDateString = item.created_at.replace(' ', 'T');
+              const dateObj = new Date(safeDateString);
+
+              dateObj.setHours(dateObj.getHours() - 3); 
+
               const formattedTime = dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
               const iconBgColor = isSuccess ? "bg-green-100" : isWarning ? "bg-yellow-100" : "bg-red-100";
@@ -229,7 +241,7 @@ export default function HomeScreen() {
 
                   <View className="flex-1">
                     <Text className="text-[#0f172a] font-bold text-base">
-                      BX-{item.id}
+                      BX-{details.id_medicao || item.id}
                     </Text>
                     <Text className="text-slate-400 text-sm mt-0.5">
                       {formattedTime}
@@ -238,7 +250,7 @@ export default function HomeScreen() {
 
                   <View className="items-end">
                     <Text className={`font-bold text-base ${valueColor}`}>
-                      {details.value.toFixed(1)} mm
+                      {details.value.toFixed(2)} mm
                     </Text>
                     <Text className="text-slate-400 text-[10px] font-bold mt-1 tracking-wider">
                       ABAULAMENTO

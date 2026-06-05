@@ -1,33 +1,63 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { Analise } from '../types/analyses';
 
-const PX_TO_MM_RATIO = 0.264583;
+export interface AnalisePDF {
+  id: number;
+  user_id: number;
+  result?: string;
+  resultado?: string;
+  created_at: string;
+}
 
-const getAnalysisDetails = (resultado: string) => {
-  const pxValue = parseFloat(resultado) || 0;
-  const mm = pxValue * PX_TO_MM_RATIO;
-  
-  if (mm <= 3) return { label: 'SUCESSO', color: '#10b981' };
-  if (mm > 3 && mm <= 5) return { label: 'ATENÇÃO', color: '#f59e0b' };
-  return { label: 'CRÍTICO', color: '#ef4444' };
+const PX_TO_MM_RATIO = 0.163453;
+
+const getStatusColor = (status: string) => {
+  const normalized = status.toUpperCase().trim();
+  if (normalized === 'SUCESSO') return '#10b981';
+  if (normalized === 'ATENÇÃO' || normalized === 'ATENCAO') return '#f59e0b';
+  if (normalized === 'CRÍTICO' || normalized === 'CRITICO') return '#ef4444';
+  return '#64748b';
 };
 
-const GeneratePDF = async(analyses: Analise[], startDate: string, endDate: string) => {
+const GeneratePDF = async(analyses: AnalisePDF[], startDate: string, endDate: string) => {
   const formatDateStr = (str: string) => str.split('-').reverse().join('/');
   
   const tableRowsHtml = analyses.map((item) => {
-    const details = getAnalysisDetails(item.resultado);
-    const dateObj = new Date(item.created_at);
+    let pxValue = 0;
+    let apiStatus = 'DESCONHECIDO';
+    let idMedicaoAPI = null;
+
+    const rawData = item.result || item.resultado;
+
+    try {
+      if (rawData) {
+        const data = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+        pxValue = parseFloat(data.abaulamento_px) || 0;
+        apiStatus = data.status || 'DESCONHECIDO';
+        idMedicaoAPI = data.id_medicao;
+      }
+    } catch (error) {
+      console.error("Erro ao ler JSON no PDF para o item ID:", item.id, error);
+    }
+
+    const mmValue = pxValue * PX_TO_MM_RATIO;
+    const badgeColor = getStatusColor(apiStatus);
+    const label = apiStatus.toUpperCase().trim();
+
+    const safeDateString = item.created_at.replace(' ', 'T') + 'Z';
+    const dateObj = new Date(safeDateString);
+
     const dateFormatted = dateObj.toLocaleDateString('pt-BR');
     const timeFormatted = dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     
+    const displayId = idMedicaoAPI || item.id;
+
     return `
       <tr>
-        <td><strong>BX-${item.id}</strong></td>
+        <td><strong>BX-${displayId}</strong></td>
         <td>${dateFormatted} às ${timeFormatted}</td>
-        <td>${parseFloat(item.resultado) * PX_TO_MM_RATIO} mm</td>
-        <td><span class="status-badge" style="background-color: ${details.color}">${details.label}</span></td>
+        <td>${mmValue.toFixed(2)} mm</td>
+        <td><span class="status-badge" style="background-color: ${badgeColor}">${label}</span></td>
       </tr>
     `;
   }).join('');
@@ -49,7 +79,7 @@ const GeneratePDF = async(analyses: Analise[], startDate: string, endDate: strin
         th { background-color: #0f172a; color: #ffffff; text-align: left; padding: 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
         td { padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #334155; }
         tr:nth-child(even) { background-color: #f8fafc; }
-        .status-badge { color: white; padding: 4px 10px; font-size: 11px; font-weight: bold; rounded; border-radius: 6px; text-transform: uppercase; }
+        .status-badge { color: white; padding: 4px 10px; font-size: 11px; font-weight: bold; border-radius: 6px; text-transform: uppercase; }
         .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 15px; }
       </style>
     </head>

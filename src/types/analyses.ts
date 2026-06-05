@@ -1,7 +1,7 @@
 export interface Analise {
     id: number;
     user_id: number;
-    resultado: string;
+    result: string;
     created_at: string;
 }
 

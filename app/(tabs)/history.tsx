@@ -8,6 +8,7 @@ import { getAnalysesByDateRange } from '../../src/database/analysesRepository';
 import GeneratePDF from '../../src/components/GeneratePDF';
 import * as SecureStore from 'expo-secure-store';
 import MaskInput, { Masks } from 'react-native-mask-input';
+import Toast from 'react-native-toast-message';
 
 export default function HistoryScreen() {
   const {
@@ -51,7 +52,13 @@ export default function HistoryScreen() {
       setModalVisible(false);
     } catch (error) {
       console.error(error);
-      Alert.alert("Erro", "Não foi possível gerar seu relatório em PDF.");
+      Toast.show({
+        type: 'error',
+        text1: 'Erro',
+        text2: 'Não foi possível gerar seu relatório em PDF.',
+        position: 'bottom',
+        visibilityTime: 4000,
+      });
     } finally {
       setIsGenerating(false);
     }

@@ -1,9 +1,10 @@
 import React, { useRef, useState } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, ActivityIndicator, Modal } from "react-native";
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from "@expo/vector-icons";
 import { salvarNoBanco } from "../../src/database/analysesRepository";
-import { CheckCircle2, RefreshCcw } from "lucide-react-native";
+import { CheckCircle2, RefreshCcw, Hash } from "lucide-react-native";
+import { useIsFocused } from "expo-router";
 
 export default function AnalisarCaixaScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -11,22 +12,32 @@ export default function AnalisarCaixaScreen() {
   const [isCapturing, setIsCapturing] = useState(false);
   const [resultado, setResultado] = useState<string | null>(null);
 
+  const isFocused = useIsFocused();
+
   if (!permission) {
-    return <View className="flex-1 bg-[#0f172a]" />;
+    return <View style={{ flex: 1, backgroundColor: '#0f172a' }} />;
   }
 
-  const PX_TO_MM_RATIO = 0.264583;
+  const PX_TO_MM_RATIO = 0.163453;
 
-  const getAnalysisDetails = (resultado: string) => {
-    const pxValue = parseFloat(resultado) || 0;
-    const mm = pxValue * PX_TO_MM_RATIO;
-    
-    return mm;
+  const getAnalysisDetails = (resultadoString: string) => {
+    try {
+      const data = JSON.parse(resultadoString);
+      const pxValue = data.abaulamento_px || 0;
+      const mm = pxValue * PX_TO_MM_RATIO;
+      return {
+        mm: mm,
+        id: data.id_medicao || '-'
+      };
+    } catch (error) {
+      console.error("Erro ao fazer parse do resultado:", error);
+      return { mm: 0, id: '-' };
+    }
   };
 
   if (!permission.granted) {
     return (
-      <View className="flex-1 bg-[#0f172a] justify-center items-center px-6">
+      <View style={{ flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}>
         <Text className="text-white text-center mb-6 text-lg">
           Precisamos de acesso à câmera para analisar a chapa.
         </Text>
@@ -51,11 +62,11 @@ export default function AnalisarCaixaScreen() {
       });
 
       console.log("Foto capturada com sucesso!", photo.uri);
-      
       uploadImage(photo.uri);
       
     } catch (error) {
       console.error("Erro na captura:", error);
+      setIsCapturing(false);
     }
   };
 
@@ -78,114 +89,119 @@ export default function AnalisarCaixaScreen() {
       });
       
       const json = await response.json();
-      console.log("Resultado:", json);
-
-      const resultadoString = JSON.stringify(json, null, 2);
+      const resultadoString = JSON.stringify(json);
       
       await salvarNoBanco(resultadoString); 
-      
       setResultado(resultadoString);
+
     } catch (err) {
       console.error("Erro na API", err);
-    }finally {
+    } finally {
       setIsCapturing(false);
     }
   };
-  if (resultado) {
-    return (
-      <View className="flex-1 bg-[#0f172a] pt-16 px-6">
-        <View className="items-center mb-8 mt-4">
-          <View className="bg-green-500/20 p-4 rounded-full mb-4">
-            <CheckCircle2 size={48} color="#22c55e" />
-          </View>
-          <Text className="text-white text-2xl font-bold">Análise Concluída</Text>
-          <Text className="text-slate-400 text-base mt-2 text-center">
-            Medição realizada e salva com sucesso.
-          </Text>
-        </View>
-        
-        <View className="flex-1 bg-[#1e293b] rounded-3xl p-6 mb-6 border border-[#334155] shadow-lg justify-center items-center">
-          <View className="bg-slate-800/50 px-4 py-2 rounded-full mb-6">
-            <Text className="text-slate-300 font-bold uppercase tracking-widest text-sm">
-              Abaulamento
-            </Text>
-          </View>
 
-          <View className="flex-row items-end justify-center">
-            <Text className="text-white text-[72px] font-black tracking-tighter" style={{ color: '#f97316' }}>
-              {getAnalysisDetails(resultado)}
-            </Text>
-            <Text className="text-slate-400 text-2xl font-bold ml-2 mb-4">
-              mm
-            </Text>
-          </View>
-        </View>
-
-        <TouchableOpacity 
-          onPress={() => setResultado(null)}
-          className="bg-orange-500 flex-row justify-center items-center py-4 rounded-2xl mb-10 shadow-lg shadow-orange-500/30"
-          activeOpacity={0.8}
-        >
-          <RefreshCcw size={20} color="white" className="mr-2" />
-          <Text className="text-white font-bold text-lg ml-2">Nova Análise</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  const detalhes = resultado ? getAnalysisDetails(resultado) : { mm: 0, id: '-' };
 
   return (
-    <View className="flex-1 bg-[#0f172a]">
-      <View className="pt-16 px-6 py-6 flex-row items-center">
-        <Text className="text-white text-2xl font-bold">Analisar Chapa</Text>
+    <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
+      
+      <View style={{ flex: 1 }}>
+        <View className="pt-16 px-6 py-6 flex-row items-center">
+          <Text className="text-white text-2xl font-bold">Analisar Chapa</Text>
+        </View>
+
+        <View className="flex-1 justify-center items-center px-10">
+          <View className="w-full aspect-[4/5] border-2 border-dashed border-slate-500 rounded-[40px] overflow-hidden relative bg-slate-800">
+            {isFocused && (
+              <CameraView 
+                ref={cameraRef}
+                style={{ flex: 1 }} 
+                facing="back"
+              />
+            )}
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleCapture}
+              disabled={isCapturing}
+              className="absolute inset-0 items-center justify-center bg-black/30"
+            >
+              <View className="items-center p-6 rounded-3xl" style={{ backgroundColor: 'rgba(15, 23, 42, 0.7)' }}>
+                <View className="p-4 rounded-full mb-4" style={{ backgroundColor: 'rgba(30, 41, 59, 0.8)' }}>
+                  {isCapturing ? (
+                    <ActivityIndicator color="#f97316" size="large" />
+                  ) : (
+                    <Ionicons name="camera-outline" size={40} color="#94a3b8" />
+                  )}
+                </View>
+
+                <Text className="text-white text-lg font-semibold text-center mb-2">
+                  {isCapturing ? "Processando..." : "Toque para capturar"}
+                </Text>
+
+                <Text className="text-slate-300 text-center px-4 text-sm leading-5">
+                  Alinhe a chapa na horizontal
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          <View className="mt-8 flex-row items-center px-4 py-2 rounded-full" style={{ backgroundColor: 'rgba(30, 41, 59, 0.3)' }}>
+            <View className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: isCapturing ? '#22c55e' : '#f97316' }} />
+            <Text className="text-slate-400 text-xs font-medium uppercase tracking-widest">
+              {isCapturing ? "Processando imagem..." : "Aguardando posicionamento"}
+            </Text>
+          </View>
+        </View>
+        <View className="h-20" />
       </View>
 
-      <View className="flex-1 justify-center items-center px-10">
-        
-        {/* Container principal (Câmera + Overlay) */}
-        <View className="w-full aspect-[4/5] border-2 border-dashed border-slate-500 rounded-[40px] overflow-hidden relative bg-slate-800">
-          
-          {/* 3. A Câmera real preenchendo o fundo */}
-          <CameraView 
-            ref={cameraRef}
-            style={{ flex: 1 }} 
-            facing="back"
-          />
-
-          {/* 4. Overlay interativo por cima da câmera */}
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={handleCapture}
-            disabled={isCapturing}
-            className="absolute inset-0 items-center justify-center bg-black/30"
-          >
-            <View className="items-center p-6 bg-slate-900/70 rounded-3xl">
-              <View className="bg-slate-800/80 p-4 rounded-full mb-4">
-                {isCapturing ? (
-                  <ActivityIndicator color="#f97316" size="large" />
-                ) : (
-                  <Ionicons name="camera-outline" size={40} color="#94a3b8" />
-                )}
-              </View>
-
-              <Text className="text-white text-lg font-semibold text-center mb-2">
-                {isCapturing ? "Processando..." : "Toque para capturar"}
-              </Text>
-
-              <Text className="text-slate-300 text-center px-4 text-sm leading-5">
-                Alinhe a chapa de perfil na horizontal
+      <Modal
+        visible={!!resultado}
+        animationType="fade"
+        transparent={true} 
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.75)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+          <View className="w-full bg-[#1e293b] rounded-[32px] p-6 border border-[#334155] items-center" style={{ elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20 }}>
+            <View className="p-4 rounded-full mb-4" style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)' }}>
+              <CheckCircle2 size={40} color="#22c55e" />
+            </View>
+            
+            <Text className="text-white text-xl font-bold mb-1">Análise Concluída</Text>
+            
+            <View className="flex-row items-center mb-6 mt-1">
+              <Hash size={14} color="#94a3b8" />
+              <Text className="text-slate-400 text-sm ml-1 font-medium">
+                Medição BX-{detalhes.id}
               </Text>
             </View>
-          </TouchableOpacity>
-        </View>
+            
+            <View className="w-full bg-[#0f172a] rounded-2xl p-5 mb-8 items-center border border-slate-800">
+              <Text className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-2">
+                Abaulamento
+              </Text>
+              <View className="flex-row items-end justify-center">
+                <Text className="text-white text-6xl font-black tracking-tighter" style={{ color: '#f97316' }}>
+                  {detalhes.mm.toFixed(2)}
+                </Text>
+                <Text className="text-slate-400 text-xl font-bold ml-2 mb-2">
+                  mm
+                </Text>
+              </View>
+            </View>
 
-        <View className="mt-8 flex-row items-center bg-slate-800/30 px-4 py-2 rounded-full">
-          <View className={`w-2 h-2 rounded-full mr-2 ${isCapturing ? 'bg-green-500' : 'bg-orange-500 animate-pulse'}`} />
-          <Text className="text-slate-400 text-xs font-medium uppercase tracking-widest">
-            {isCapturing ? "Processando imagem..." : "Aguardando posicionamento"}
-          </Text>
+            <TouchableOpacity 
+              onPress={() => setResultado(null)}
+              className="bg-orange-500 w-full flex-row justify-center items-center py-4 rounded-xl"
+              activeOpacity={0.8}
+            >
+              <RefreshCcw size={20} color="white" className="mr-2" />
+              <Text className="text-white font-bold text-lg ml-2">Nova Leitura</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-      <View className="h-20" />
+      </Modal>
     </View>
   );
 }

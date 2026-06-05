@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { ArrowRight, Box, Lock, Mail } from "lucide-react-native";
+import { ArrowRight, Box, Lock, Mail, Eye, EyeOff } from "lucide-react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useRouter } from "expo-router";
 import { useLogin } from "../../src/hooks/useLogin";
@@ -12,6 +12,7 @@ export default function LoginScreen() {
   const { email, setEmail, password, setPassword, errors, handleEnter } = useLogin();
   
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const onLoginPress = async () => {
     setIsLoading(true);
@@ -106,25 +107,26 @@ export default function LoginScreen() {
                 onChangeText={setPassword}
                 placeholder="••••••••"
                 placeholderTextColor="#64748b"
-                secureTextEntry
+                secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 editable={!isLoading}
                 className="flex-1 text-white ml-3 text-base"
               />
+              <TouchableOpacity 
+                onPress={() => setShowPassword(!showPassword)}
+                className="p-2"
+                activeOpacity={0.7}
+              >
+                {showPassword ? (
+                  <EyeOff size={20} color="#94a3b8" />
+                ) : (
+                  <Eye size={20} color="#94a3b8" />
+                )}
+              </TouchableOpacity>
             </View>
             {errors?.password ? (
               <Text className="text-red-500 text-sm mt-1 ml-1 font-medium">{errors.password}</Text>
             ) : null}
-            
-            <TouchableOpacity
-              className="self-end mt-3"
-              onPress={() => router.push("/password")}
-              disabled={isLoading}
-            >
-              <Text className="text-orange-500 font-semibold">
-                Esqueceu a senha?
-              </Text>
-            </TouchableOpacity>
           </View>
         </View>
 

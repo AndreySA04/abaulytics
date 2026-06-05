@@ -39,25 +39,28 @@ export async function getRecentAnalyses(userId: string | null): Promise<Analise[
     );
 }
 
-const PX_TO_MM_RATIO = 0.264583;
-
 export async function getCriticalAnalysesCountToday(userId: string | null): Promise<number> {
-    const db = await getDatabase();
-    
-    const today = new Date().toISOString().split('T')[0];
-    
-    const todayAnalyses = await db.getAllAsync<Analise>(
-        "SELECT * FROM analyses WHERE user_id = ? AND created_at LIKE ?", 
-        [userId, `${today}%`]
-    );
-    
-    const criticalCount = todayAnalyses.filter(item => {
-        const pxValue = parseFloat(item.resultado) || 0;
-        const mm = pxValue * PX_TO_MM_RATIO;
-        return mm > 5;
-    }).length;
-    
-    return criticalCount;
+  const db = await getDatabase();
+  
+  const today = new Date().toISOString().split('T')[0];
+  
+  const todayAnalyses = await db.getAllAsync<Analise>(
+    "SELECT * FROM analyses WHERE user_id = ? AND created_at LIKE ?", 
+    [userId, `${today}%`]
+  );
+  
+  const criticalCount = todayAnalyses.filter(item => {
+    try {
+      const data = JSON.parse(item.result);
+      const status = (data.status || '').toUpperCase().trim();
+      return status === 'CRÍTICO' || status === 'CRITICO';
+    } catch (error) {
+      console.error("Erro ao ler JSON no getCriticalAnalysesCountToday:", error);
+      return false;
+    }
+  }).length;
+  
+  return criticalCount;
 }
 
 export async function getAnalysesByDateRange(
