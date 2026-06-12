@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator, Modal } from "react-native";
+import { View, Text, TouchableOpacity, ActivityIndicator, Modal, TextInput } from "react-native";
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from "@expo/vector-icons";
 import { salvarNoBanco } from "../../src/database/analysesRepository";
@@ -11,6 +11,7 @@ export default function AnalisarCaixaScreen() {
   const cameraRef = useRef<any>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [resultado, setResultado] = useState<string | null>(null);
+  const [larguraRealMm, setLarguraRealMm] = useState<string>('500');
 
   const isFocused = useIsFocused();
 
@@ -23,8 +24,7 @@ export default function AnalisarCaixaScreen() {
   const getAnalysisDetails = (resultadoString: string) => {
     try {
       const data = JSON.parse(resultadoString);
-      const pxValue = data.abaulamento_px || 0;
-      const mm = pxValue * PX_TO_MM_RATIO;
+      const mm = data.abaulamento_mm !== undefined ? Number(data.abaulamento_mm) : ((data.abaulamento_px || 0) * PX_TO_MM_RATIO);
       return {
         mm: mm,
         id: data.id_medicao || '-'
@@ -77,6 +77,7 @@ export default function AnalisarCaixaScreen() {
       name: 'chapa.jpg',
       type: 'image/jpeg',
     } as any);
+    formData.append('largura_real_mm', String(Number(larguraRealMm) || 0));
 
     try {
       // Substitua pelo IPv4 do seu computador na rede Wi-Fi
@@ -109,6 +110,17 @@ export default function AnalisarCaixaScreen() {
       <View style={{ flex: 1 }}>
         <View className="pt-16 px-6 py-6 flex-row items-center">
           <Text className="text-white text-2xl font-bold">Analisar Chapa</Text>
+        </View>
+
+        <View style={{ paddingHorizontal: 24, marginTop: 8 }}>
+          <TextInput
+            value={larguraRealMm}
+            onChangeText={setLarguraRealMm}
+            keyboardType="numeric"
+            placeholder="Largura real da chapa (mm)"
+            placeholderTextColor="#94a3b8"
+            style={{ color: 'white', padding: 10, borderRadius: 8, backgroundColor: 'rgba(15,23,42,0.5)' }}
+          />
         </View>
 
         <View className="flex-1 justify-center items-center px-10">

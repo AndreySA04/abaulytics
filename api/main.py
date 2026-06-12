@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import sqlite3
 from datetime import datetime
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -32,7 +32,7 @@ def init_db():
 init_db()
 
 @app.post("/api/analisar-chapa")
-async def analisar_chapa(file: UploadFile = File(...)):
+async def analisar_chapa(file: UploadFile = File(...), largura_real_mm: float = Form(None)):
     try:
         contents = await file.read()
         nparr = np.frombuffer(contents, np.uint8)
@@ -103,7 +103,8 @@ async def analisar_chapa(file: UploadFile = File(...)):
         abaulamento_maximo_px = float(abs(vale_y - pico_y))
 
         # Conversão para Milímetros (usando a largura real da chapa)
-        LARGURA_REAL_MM = 500.0 # <-- Substitua pelo tamanho da sua chapa
+        DEFAULT_LARGURA_REAL_MM = 500.0 # valor padrão
+        LARGURA_REAL_MM = float(largura_real_mm) if largura_real_mm is not None else DEFAULT_LARGURA_REAL_MM
         
         # A largura na foto é a distância do primeiro ao último X da linha lida
         largura_px = float(x_linha[-1] - x_linha[0])
@@ -158,6 +159,7 @@ async def analisar_chapa(file: UploadFile = File(...)):
             "id_medicao": id_inserido,
             "data": data_atual,
             "abaulamento_px": abaulamento_maximo_px,
+            "abaulamento_mm": abaulamento_mm,
         }
 
     except Exception as e:
