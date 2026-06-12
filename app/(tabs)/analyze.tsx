@@ -5,10 +5,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { salvarNoBanco } from "../../src/database/analysesRepository";
 import { CheckCircle2, RefreshCcw, Hash } from "lucide-react-native";
 import { useIsFocused } from "expo-router";
+import { getAnalysisDetails } from "../../src/utils/analyze";
 
 export default function AnalisarCaixaScreen() {
   const [permission, requestPermission] = useCameraPermissions();
-  const cameraRef = useRef<any>(null);
+  const cameraRef = useRef<CameraView>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [resultado, setResultado] = useState<string | null>(null);
   const [larguraRealMm, setLarguraRealMm] = useState<string>('500');
@@ -18,22 +19,6 @@ export default function AnalisarCaixaScreen() {
   if (!permission) {
     return <View style={{ flex: 1, backgroundColor: '#0f172a' }} />;
   }
-
-  const PX_TO_MM_RATIO = 0.163453;
-
-  const getAnalysisDetails = (resultadoString: string) => {
-    try {
-      const data = JSON.parse(resultadoString);
-      const mm = data.abaulamento_mm !== undefined ? Number(data.abaulamento_mm) : ((data.abaulamento_px || 0) * PX_TO_MM_RATIO);
-      return {
-        mm: mm,
-        id: data.id_medicao || '-'
-      };
-    } catch (error) {
-      console.error("Erro ao fazer parse do resultado:", error);
-      return { mm: 0, id: '-' };
-    }
-  };
 
   if (!permission.granted) {
     return (

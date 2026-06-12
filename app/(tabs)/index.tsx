@@ -14,21 +14,7 @@ import { Analise } from "../../src/types/analyses";
 import * as SecureStore from 'expo-secure-store';
 import { getAnalysesCountToday, getCriticalAnalysesCountToday, getRecentAnalyses } from "../../src/database/analysesRepository";
 import { getProfile } from "../../src/database/userRepository";
-
-const PX_TO_MM_RATIO = 0.163453;
-
-const getAnalysisDetails = (resultadoString: string) => {
-  try {
-    const data = JSON.parse(resultadoString);
-    const pxValue = data.abaulamento_px || 0;
-    const mm = pxValue * PX_TO_MM_RATIO;
-    
-    return { status: data.status, value: mm, id_medicao: data.id_medicao };
-  } catch (error) {
-    console.error("Erro ao ler resultado:", error);
-    return { status: 'success', value: 0, id_medicao: null };
-  }
-};
+import { getAnalysisDetails } from "../../src/utils/analyze";
 
 const getFormattedCurrentDate = () => {
   const date = new Date();
