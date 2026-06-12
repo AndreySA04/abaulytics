@@ -5,6 +5,7 @@ export const getAnalysisDetails = (resultadoString: string) => {
       const data = JSON.parse(resultadoString);
       const mm = data.abaulamento_mm !== undefined ? Number(data.abaulamento_mm) : ((data.abaulamento_px || 0) * PX_TO_MM_RATIO);
       return {
+        status: data.status,
         mm: mm,
         id: data.id_medicao || '-'
       };

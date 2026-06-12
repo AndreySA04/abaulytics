@@ -227,7 +227,7 @@ export default function HomeScreen() {
 
                   <View className="flex-1">
                     <Text className="text-[#0f172a] font-bold text-base">
-                      BX-{details.id_medicao || item.id}
+                      BX-{details.id || item.id}
                     </Text>
                     <Text className="text-slate-400 text-sm mt-0.5">
                       {formattedTime}
@@ -236,7 +236,7 @@ export default function HomeScreen() {
 
                   <View className="items-end">
                     <Text className={`font-bold text-base ${valueColor}`}>
-                      {details.value.toFixed(2)} mm
+                      {details.mm.toFixed(2)} mm
                     </Text>
                     <Text className="text-slate-400 text-[10px] font-bold mt-1 tracking-wider">
                       ABAULAMENTO

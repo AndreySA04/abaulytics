@@ -93,19 +93,31 @@ export default function AnalisarCaixaScreen() {
     <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
       
       <View style={{ flex: 1 }}>
-        <View className="pt-16 px-6 py-6 flex-row items-center">
+        <View className="pt-16 px-6 py-4 flex-row items-center">
           <Text className="text-white text-2xl font-bold">Analisar Chapa</Text>
         </View>
 
-        <View style={{ paddingHorizontal: 24, marginTop: 8 }}>
-          <TextInput
-            value={larguraRealMm}
-            onChangeText={setLarguraRealMm}
-            keyboardType="numeric"
-            placeholder="Largura real da chapa (mm)"
-            placeholderTextColor="#94a3b8"
-            style={{ color: 'white', padding: 10, borderRadius: 8, backgroundColor: 'rgba(15,23,42,0.5)' }}
-          />
+        <View className="px-6 mt-2 mb-6 items-center w-full">
+          <Text className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2 text-center">
+            Largura Real da Chapa
+          </Text>
+          <View className="flex-row items-center justify-center bg-[#1e293b] border-2 border-slate-600 rounded-2xl px-4 py-2 w-2/3">
+            <TextInput
+              value={larguraRealMm}
+              onChangeText={setLarguraRealMm}
+              keyboardType="numeric"
+              placeholder="500"
+              placeholderTextColor="#64748b"
+              textAlign="center"
+              style={{ 
+                color: '#f97316',
+                fontSize: 32, 
+                fontWeight: 'bold', 
+                minWidth: 80 
+              }}
+            />
+            <Text className="text-slate-400 text-lg font-bold ml-1 mt-2">mm</Text>
+          </View>
         </View>
 
         <View className="flex-1 justify-center items-center px-10">
