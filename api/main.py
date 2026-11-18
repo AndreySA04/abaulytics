@@ -23,6 +23,7 @@ MAX_PIXELS = 16_000_000
 MAX_DIMENSION = 8192
 MIN_PROFILE_WIDTH_PX = 50
 MIN_PROFILE_WIDTH_RATIO = 0.45
+MIN_FRONT_WIDTH_RATIO = 0.15
 MAX_PROFILE_THICKNESS_RATIO = 0.15
 MIN_EDGE_CONTRAST = 16
 PROFILE_MEASUREMENT_METHOD = "flecha_perfil_v1"
@@ -210,12 +211,17 @@ def has_adjacent_profile_fragment(contours, x, y, centerline, typical_thickness)
 
 
 def find_sheet_candidates(contours, width, height, *, front_view=False):
-    min_ratio = 0.30 if front_view else MIN_PROFILE_WIDTH_RATIO
+    min_ratio = MIN_FRONT_WIDTH_RATIO if front_view else MIN_PROFILE_WIDTH_RATIO
     min_width = max(MIN_PROFILE_WIDTH_PX, width * min_ratio)
     candidates = []
     for contour in contours:
         x, y, span, depth = cv2.boundingRect(contour)
-        if span < min_width or not x <= width / 2 < x + span or not height / 4 <= y + depth / 2 <= 3 * height / 4:
+        center_x, center_y = x + span / 2, y + depth / 2
+        if front_view:
+            in_frame = width / 8 <= center_x <= 7 * width / 8 and height / 8 <= center_y <= 7 * height / 8
+        else:
+            in_frame = x <= width / 2 < x + span and height / 4 <= center_y <= 3 * height / 4
+        if span < min_width or not in_frame:
             continue
         area = cv2.contourArea(contour)
         lateral = area <= MAX_PROFILE_THICKNESS_RATIO * span ** 2
@@ -245,6 +251,44 @@ def find_front_candidates(distance_from_background, mask, threshold):
     return []
 
 
+def find_brown_contours(img):
+    """Locate cardboard by color when a screen, paper or shadow dominates the contrast mask."""
+    height, width = img.shape[:2]
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    mask = cv2.inRange(hsv, (0, 50, 20), (40, 255, 255))
+    size = max(3, min(21, 2 * (height // 350) + 1))
+    bridge = max(3, min(35, 2 * (height // 180) + 1))
+    cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((bridge, 1), dtype=np.uint8), dst=mask)
+    cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((size, size), dtype=np.uint8), dst=mask)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    return find_sheet_candidates(contours, width, height, front_view=True)
+
+
+def front_candidates(img, distance_from_background, mask, threshold):
+    candidates = find_front_candidates(distance_from_background, mask, threshold)
+    brown_candidates = find_brown_contours(img)
+    if not candidates:
+        return brown_candidates
+    if brown_candidates and len(candidates) == 1:
+        _, x, y, width, height = candidates[0]
+        margin = max(2, round(0.025 * min(width, height)))
+        # The rectangular contrast contour may be a white page or display around the actual sheet.
+        enclosed = [candidate for candidate in brown_candidates
+                    if x + margin <= candidate[1] and candidate[1] + candidate[3] <= x + width - margin
+                    and y + margin <= candidate[2] and candidate[2] + candidate[4] <= y + height - margin]
+        if enclosed:
+            return enclosed
+
+        image_height, image_width = mask.shape
+        touches_frame = x == 0 or y == 0 or x + width == image_width or y + height == image_height
+        if touches_frame and len(brown_candidates) == 1:
+            _, bx, by, bw, bh = brown_candidates[0]
+            brown_complete = 0 < bx and bx + bw < image_width and 0 < by and by + bh < image_height
+            if brown_complete and bh >= 0.65 * height:
+                return brown_candidates
+    return candidates
+
+
 def profile_deflection(sections, line, left_x, left_y, right_x, right_y):
     span = right_x - left_x
     radius = max(2, min(10, round(span * 0.002)))
@@ -270,7 +314,7 @@ def front_corner(upper, trim):
 def measure_front_contour(contour, silhouette):
     """Measure the upper outline in the image plane of a front-facing sheet."""
     depth, span = silhouette.shape
-    base_margin = span // 5
+    base_margin = round(span * 0.30)
     base_columns = np.arange(base_margin, span - base_margin)
     lower_edge = depth - 1 - np.argmax(silhouette[::-1, base_margin:-base_margin], axis=0)
     base = np.column_stack((base_columns, lower_edge)).astype(np.float32)
@@ -278,7 +322,7 @@ def measure_front_contour(contour, silhouette):
     angle = math.atan2(float(vy), float(vx))
     straightness = np.abs((base_columns - base_x) * vy - (lower_edge - base_y) * vx)
     framing_error = "Refaça a foto de frente, com a borda a medir no topo e a base e as laterais visíveis."
-    if abs(angle) > math.radians(25) or np.percentile(straightness, 90) > max(2, 0.018 * span):
+    if abs(angle) > math.radians(30) or np.percentile(straightness, 90) > max(2, 0.018 * span):
         raise HTTPException(422, framing_error)
 
     # Rotate the outline into the axes of the sheet's base to keep the side walls out of the upper profile.
@@ -290,15 +334,37 @@ def measure_front_contour(contour, silhouette):
     aligned = np.zeros((aligned_height, aligned_width), dtype=np.uint8)
     cv2.fillPoly(aligned, [points], 1)
 
-    side_rows = aligned[round(aligned_height * 0.55):round(aligned_height * 0.85)]
+    rows = np.arange(round(aligned_height * 0.55), round(aligned_height * 0.85))
+    side_rows = aligned[rows[0]:rows[-1] + 1]
     left_side = np.argmax(side_rows, axis=1)
     right_side = aligned_width - 1 - np.argmax(side_rows[:, ::-1], axis=1)
-    left_low, left_x, left_high = np.percentile(left_side, (10, 50, 90))
-    right_low, right_x, right_high = np.percentile(right_side, (10, 50, 90))
-    if max(left_high - left_low, right_high - right_low) > max(2, 0.04 * aligned_width):
+    left_wall = np.polyfit(rows, left_side, 1)
+    right_wall = np.polyfit(rows, right_side, 1)
+    wall_error = np.maximum(np.abs(left_side - np.polyval(left_wall, rows)),
+                            np.abs(right_side - np.polyval(right_wall, rows)))
+    wall_drift = max(abs(left_wall[0]), abs(right_wall[0])) * aligned_height
+    if np.percentile(wall_error, 90) > max(2, 0.015 * aligned_width) or wall_drift > 0.18 * aligned_width:
         raise HTTPException(422, framing_error)
 
-    upper = np.argmax(aligned[:, round(left_x):round(right_x) + 1], axis=0)
+    left_x, right_x = round(np.median(left_side)), round(np.median(right_side))
+    width = right_x - left_x + 1
+    if wall_drift > 0.015 * aligned_width and width >= MIN_PROFILE_WIDTH_PX:
+        # Map the visible outline between its side walls, then recover original image coordinates for measurement.
+        edge_x, edge_y = points.T
+        left = np.polyval(left_wall, edge_y)
+        right = np.polyval(right_wall, edge_y)
+        if np.min(right - left) < 0.65 * width:
+            raise HTTPException(422, framing_error)
+        corrected_x = (edge_x - left) * (width - 1) / (right - left)
+        corrected = np.column_stack((np.rint(np.clip(corrected_x, 0, width - 1)), edge_y)).astype(np.int32)
+        aligned = np.zeros((aligned_height, width), dtype=np.uint8)
+        cv2.fillPoly(aligned, [corrected], 1)
+        left_x, right_x = 0, width - 1
+        rectified = True
+    else:
+        rectified = False
+
+    upper = np.argmax(aligned[:, left_x:right_x + 1], axis=0)
     if len(upper) < MIN_PROFILE_WIDTH_PX:
         raise HTTPException(422, framing_error)
 
@@ -307,6 +373,13 @@ def measure_front_contour(contour, silhouette):
     left_y = front_corner(upper, trim)
     right_y = front_corner(upper[::-1], trim)
     sections = np.arange(trim, len(upper) - trim)
+    if rectified:
+        line = upper[sections]
+        left = np.polyval(left_wall, line)
+        right = np.polyval(right_wall, line)
+        image_x = left + (right - left) * sections / (width - 1)
+        return profile_deflection(image_x, line, np.polyval(left_wall, left_y), left_y,
+                                  np.polyval(right_wall, right_y), right_y)
     return profile_deflection(sections, upper[sections], 0, left_y, len(upper) - 1, right_y)
 
 
@@ -323,17 +396,17 @@ def measure_sheet(img, *, allow_front_view=True):
     candidates = find_sheet_candidates(contours, width, height)
     method = PROFILE_MEASUREMENT_METHOD
     if allow_front_view and not candidates:
-        candidates = find_front_candidates(distance_from_background, mask, threshold)
+        candidates = front_candidates(img, distance_from_background, mask, threshold)
         method = CONTOUR_MEASUREMENT_METHOD
 
     if not candidates:
-        raise HTTPException(422, "Refaça a foto com a chapa inteira centralizada em um fundo uniforme e contrastante.")
+        raise HTTPException(422, "Refaça a foto aproximando a câmera, com a chapa inteira visível e um fundo contrastante.")
     if len(candidates) > 1:
         raise HTTPException(422, "Mais de uma chapa foi encontrada. Refaça a foto com apenas uma chapa no enquadramento.")
 
     contour, x, y, span, depth = candidates[0]
-    x_margin = max(2, round(width * 0.02))
-    y_margin = max(2, round(height * 0.02))
+    x_margin = 1 if method == CONTOUR_MEASUREMENT_METHOD else max(2, round(width * 0.02))
+    y_margin = 1 if method == CONTOUR_MEASUREMENT_METHOD else max(2, round(height * 0.02))
     if x < x_margin or x + span > width - x_margin or y < y_margin or y + depth > height - y_margin:
         raise HTTPException(422, "Refaça a foto deixando margem em torno da chapa e mantendo as duas pontas visíveis.")
 

@@ -173,6 +173,53 @@ class AnalysisTests(unittest.TestCase):
         self.assertEqual(result["metodo_medicao"], "flecha_contorno_v1")
         self.assertAlmostEqual(result["abaulamento_px"], 60, delta=2)
 
+    def test_distant_front_contour_off_center_and_on_screen(self):
+        picture = cv2.resize(front_photo(60), (390, 420), interpolation=cv2.INTER_AREA)
+        for background in (255, 42):
+            with self.subTest(background=background):
+                photo = np.full((1120, 860, 3), background, dtype=np.uint8)
+                photo[125:545, 60:450] = picture
+                data = cv2.imencode(".jpg", photo, [cv2.IMWRITE_JPEG_QUALITY, 70])[1].tobytes()
+                status, result = self.call(data, mime="image/jpeg")
+                self.assertEqual(status, 200, result)
+                self.assertEqual(result["metodo_medicao"], "flecha_contorno_v1")
+                self.assertAlmostEqual(result["abaulamento_mm"], 500 * 60 / 360, delta=5)
+
+    def test_front_contour_with_shadow_touching_frame(self):
+        y, x = np.mgrid[:700, :650]
+        light = 1 - 0.45 * np.exp(-((x - 110) ** 2 + (y - 300) ** 2) / (2 * 90 ** 2))
+        photo = (front_photo(60) * light[:, :, None]).astype(np.uint8)
+        status, result = self.call_photo(photo)
+        self.assertEqual(status, 200, result)
+        self.assertEqual(result["metodo_medicao"], "flecha_contorno_v1")
+        self.assertAlmostEqual(result["abaulamento_mm"], 500 * 60 / 360, delta=5)
+
+    def test_front_contour_with_perspective_and_camera_roll(self):
+        corners = np.float32([[0, 0], [649, 0], [649, 699], [0, 699]])
+        perspective = cv2.getPerspectiveTransform(corners, np.float32([[40, 50], [620, 5], [605, 690], [60, 635]]))
+        x = np.arange(145, 506)
+        y = 248 - 60 * (1 - np.linspace(-1, 1, len(x)) ** 2)
+        projected = cv2.perspectiveTransform(np.column_stack((x, y))[None, :, :], perspective)[0]
+        dx, dy = projected[-1] - projected[0]
+        displacement = projected - projected[0]
+        projected_mm = 500 * np.max(np.abs(dx * displacement[:, 1] - dy * displacement[:, 0])) / (dx ** 2 + dy ** 2)
+
+        for photo, expected in [
+            (cv2.warpPerspective(front_photo(60), perspective, (650, 700), borderValue=(255, 255, 255)), projected_mm),
+            (front_photo(60, angle=25), 500 * 60 / 360),
+        ]:
+            with self.subTest(expected=expected):
+                status, result = self.call_photo(photo)
+                self.assertEqual(status, 200, result)
+                self.assertEqual(result["metodo_medicao"], "flecha_contorno_v1")
+                self.assertAlmostEqual(result["abaulamento_mm"], expected, delta=5)
+
+    def test_front_contour_with_narrow_visible_margin(self):
+        status, result = self.call_photo(front_photo(60)[:, 144:507].copy())
+        self.assertEqual(status, 200, result)
+        self.assertEqual(result["metodo_medicao"], "flecha_contorno_v1")
+        self.assertAlmostEqual(result["abaulamento_px"], 60, delta=2)
+
     def test_background_stain_and_single_profile_spike(self):
         photo = sheet_photo()
         cv2.rectangle(photo, (20, 45), (42, 70), (0, 0, 0), -1)
