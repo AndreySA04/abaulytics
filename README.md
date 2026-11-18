@@ -268,8 +268,10 @@ Esses valores são **requisitos de aceitação**, não medições comprovadas em
 
 - Alan Suzuki
 - Andrey de Souza Almeida
+- Gabriel Stocco
 - Heitor Vicenzo Cantuaria
 - João Gabriel Rebouças Dias
+- Rafael Alexandre De Oliveira
 
 **Contexto do projeto:** Irani, monitoramento do abaulamento de chapas de papelão ondulado.
 
