@@ -1,23 +1,35 @@
 import { Analise } from '../types/analyses';
 import {getDatabase} from './database';
-import * as SecureStore from 'expo-secure-store';
+import { requireUser } from '../security/session';
+import { requireConsent } from '../privacy/repository';
+import { transaction } from './transaction';
+import { appendAudit } from '../security/audit';
+import { POLICY_VERSION, PURPOSE } from '../privacy/policy';
 
 export async function salvarNoBanco(result: string): Promise<void> {
+    const user = await requireConsent();
+    const parsed = JSON.parse(result);
+    if (parsed.status !== 'sucesso' || !Number.isFinite(parsed.abaulamento_mm) || parsed.abaulamento_mm < 0 || parsed.erro) {
+      throw new Error('Resultado de análise inválido.');
+    }
     const db = await getDatabase();
-    const userId: string | null = await SecureStore.getItemAsync('userId');
-
-    await db.runAsync(`
-        INSERT INTO analyses (user_id, result)
-        VALUES (?, ?)
-    `, [userId, result]);
+    await transaction(db, async tx => {
+      const consent = await tx.getFirstAsync<{ granted: number; policy_version: string }>(
+        'SELECT granted, policy_version FROM consents WHERE user_id = ? AND purpose = ? ORDER BY id DESC LIMIT 1', [user.id, PURPOSE]);
+      if (consent?.granted !== 1 || consent.policy_version !== POLICY_VERSION) throw new Error('Consentimento revogado.');
+      await tx.runAsync('INSERT INTO analyses (user_id, result) VALUES (?, ?)', [user.id, result]);
+      await appendAudit(tx, 'analysis', user);
+    });
 }
 
 export async function getAnalysesByUserId(userId: string | null): Promise<Analise[]> {
+    await requireUser(userId);
     const db = await getDatabase();
     return db.getAllAsync<Analise>("SELECT * FROM analyses WHERE user_id = ?", [userId]);
 }
 
 export async function getAnalysesCountToday(userId: string | null): Promise<number> {
+    await requireUser(userId);
     const db = await getDatabase();
     
     const today = new Date().toISOString().split('T')[0];
@@ -31,6 +43,7 @@ export async function getAnalysesCountToday(userId: string | null): Promise<numb
 }
 
 export async function getRecentAnalyses(userId: string | null): Promise<Analise[]> {
+    await requireUser(userId);
     const db = await getDatabase();
     
     return db.getAllAsync<Analise>(
@@ -40,6 +53,7 @@ export async function getRecentAnalyses(userId: string | null): Promise<Analise[
 }
 
 export async function getCriticalAnalysesCountToday(userId: string | null): Promise<number> {
+  await requireUser(userId);
   const db = await getDatabase();
   
   const today = new Date().toISOString().split('T')[0];
@@ -68,9 +82,8 @@ export async function getAnalysesByDateRange(
   startDate: string,
   endDate: string  
 ): Promise<Analise[]> {
+  await requireUser(userId);
   const db = await getDatabase();
-  
-  if (!userId) return [];
 
   return db.getAllAsync<Analise>(
     `SELECT * FROM analyses 

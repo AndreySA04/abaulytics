@@ -1,5 +1,7 @@
-fastapi
+fastapi>=0.115,<1
+pydantic>=2,<3
 python-multipart
 uvicorn
 numpy
 opencv-python
+Pillow>=10.1

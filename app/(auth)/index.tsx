@@ -2,42 +2,14 @@ import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ArrowRight, Box, Lock, Mail, Eye, EyeOff } from "lucide-react-native";
-import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useRouter } from "expo-router";
 import { useLogin } from "../../src/hooks/useLogin";
-import Toast from 'react-native-toast-message';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { email, setEmail, password, setPassword, errors, handleEnter } = useLogin();
-  
-  const [isLoading, setIsLoading] = useState(false);
+  const { email, setEmail, password, setPassword, errors, handleEnter, message, isLoading } = useLogin();
   const [showPassword, setShowPassword] = useState(false);
-
-  const onLoginPress = async () => {
-    setIsLoading(true);
-    try {
-      const success = await handleEnter(); 
-      
-      if (success === false) {
-        showErrorToast();
-      }
-    } catch (error) {
-      showErrorToast();
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const showErrorToast = () => {
-    Toast.show({
-      type: 'error',
-      text1: 'Falha no login',
-      text2: 'O e-mail ou senha estão incorretos.',
-      position: 'bottom',
-      visibilityTime: 4000,
-    });
-  };
 
   return (
     <LinearGradient
@@ -47,9 +19,9 @@ export default function LoginScreen() {
       className="flex-1"
     >
       <KeyboardAwareScrollView
-        enableOnAndroid={true}
+        bottomOffset={50}
         contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
-        className="px-6"
+        style={{ paddingHorizontal: 24 }}
         keyboardShouldPersistTaps="handled"
       >
         <View className="items-center mb-10 mt-10">
@@ -109,6 +81,9 @@ export default function LoginScreen() {
                 placeholderTextColor="#64748b"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="current-password"
+                onSubmitEditing={handleEnter}
                 editable={!isLoading}
                 className="flex-1 text-white ml-3 text-base"
               />
@@ -130,9 +105,10 @@ export default function LoginScreen() {
           </View>
         </View>
 
+        {!!message && <Text accessibilityRole="alert" className="text-red-400 mt-3">{message}</Text>}
         <TouchableOpacity
           className={`bg-orange-500 rounded-2xl h-14 mt-8 flex-row justify-center items-center ${isLoading ? 'opacity-80' : 'opacity-100'}`}
-          onPress={onLoginPress}
+          onPress={handleEnter}
           disabled={isLoading}
           style={{
             shadowColor: "#FF7300",
@@ -145,7 +121,7 @@ export default function LoginScreen() {
             <ActivityIndicator color="white" />
           ) : (
             <>
-              <Text className="text-white text-lg font-bold mr-2">Entrar</Text>
+              <Text className="text-white text-lg font-bold mr-2">Entrar na Bancada</Text>
               <ArrowRight size={20} color="white" />
             </>
           )}
@@ -159,6 +135,10 @@ export default function LoginScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+        <TouchableOpacity accessibilityRole="button" className="mb-8 items-center py-3"
+          onPress={() => router.push('/producao')} disabled={isLoading}>
+          <Text className="font-semibold text-orange-400">Acessar Produção com crachá</Text>
+        </TouchableOpacity>
       </KeyboardAwareScrollView>
     </LinearGradient>
   );

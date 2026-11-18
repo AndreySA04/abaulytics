@@ -1,10 +1,11 @@
+import { SessionGate } from '../../src/components/SessionGate';
 import { Tabs } from 'expo-router';
 import { View, Text } from 'react-native';
 import { Camera, History, Home } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
-    <Tabs
+    <SessionGate><Tabs
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: true,
@@ -73,6 +74,7 @@ export default function TabLayout() {
           href: null,
         }}
       />
-    </Tabs>
+      <Tabs.Screen name="privacy" options={{ href: null }} />
+    </Tabs></SessionGate>
   );
 }

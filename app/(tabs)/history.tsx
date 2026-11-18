@@ -68,7 +68,7 @@ export default function HistoryScreen() {
     <View className="flex-1 bg-gray-50">
       <View className="bg-[#151B2B] pt-14 px-5 pb-8 rounded-b-3xl">
         <View className="flex-row justify-between items-center mb-8">
-          <Text className="text-2xl font-bold text-white">Histórico</Text>
+          <Text className="text-2xl font-bold text-white">Histórico de bancada</Text>
           <TouchableOpacity 
             onPress={() => setModalVisible(true)}
             className="bg-[#FF7F00] flex-row items-center px-4 py-2 rounded-xl gap-1.5"

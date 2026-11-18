@@ -1,3 +1,6 @@
+import { logout } from '../../src/security/session';
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import React, { useEffect, useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
 import { ArrowLeft, User, Mail, Shield, Calendar, LogOut } from "lucide-react-native";
@@ -17,7 +20,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<{ name: string; email: string; role?: string; created_at?: string } | null>(null);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     const fetchUserData = async () => {
       try {
         const userId = await SecureStore.getItemAsync('userId');
@@ -35,10 +38,10 @@ export default function ProfileScreen() {
     };
 
     fetchUserData();
-  }, []);
+  }, []));
 
   const handleLogout = async () => {
-    await SecureStore.deleteItemAsync('userId');
+    await logout();
     router.replace("/(auth)/");
   };
 
@@ -122,6 +125,10 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        <TouchableOpacity onPress={() => router.push('/(tabs)/privacy')} className="bg-orange-50 rounded-2xl p-5 mb-5">
+          <Text className="text-orange-700 font-bold">Privacidade e meus dados</Text>
+          <Text className="text-slate-600 mt-1">Consentimento, correção, exportação e exclusão</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           onPress={handleLogout}
           className="bg-red-50 border border-red-100 rounded-2xl h-14 flex-row justify-center items-center mb-12 active:bg-red-100"

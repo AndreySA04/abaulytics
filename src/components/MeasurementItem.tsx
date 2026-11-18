@@ -2,8 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { Calendar } from 'lucide-react-native';
 import { Analise } from '../types/analyses';
-
-const PX_TO_MM_RATIO = 0.163453;
+import { CONTOUR_MEASUREMENT_METHOD, isEstimatedMeasurement, PX_TO_MM_RATIO } from '../utils/analyze';
 
 const getStatusClasses = (status: string) => {
   const normalizedStatus = status.toUpperCase().trim();
@@ -23,25 +22,31 @@ const getStatusClasses = (status: string) => {
 
 export const MeasurementItem = ({ item }: { item: Analise }) => {
   let pxValue = 0;
+  let explicitMm: number | null = null;
+  let isEstimated = false;
+  let isContour = false;
   let idMedicaoAPI = null;
   let apiStatus = 'DESCONHECIDO';
 
   try {
     const data = JSON.parse(item.result);
+    isEstimated = isEstimatedMeasurement(data.metodo_medicao);
+    isContour = data.metodo_medicao === CONTOUR_MEASUREMENT_METHOD;
     pxValue = data.abaulamento_px || 0;
+    if (typeof data.abaulamento_mm === 'number' && Number.isFinite(data.abaulamento_mm)) explicitMm = data.abaulamento_mm;
     idMedicaoAPI = data.id_medicao;
     apiStatus = data.status || 'DESCONHECIDO';
   } catch (error) {
     console.error("Erro ao fazer parse do resultado no MeasurementItem:", error);
   }
 
-  const mmValue = pxValue * PX_TO_MM_RATIO;
+  const mmValue = explicitMm ?? pxValue * PX_TO_MM_RATIO;
   
   const statusConfig = getStatusClasses(apiStatus);
 
-  const safeDateString = item.created_at.replace(' ', 'T');
+  const date = item.created_at.replace(' ', 'T');
+  const safeDateString = /(?:Z|[+-]\d{2}:\d{2})$/.test(date) ? date : date + 'Z';
   const dateObj = new Date(safeDateString);
-  dateObj.setHours(dateObj.getHours() - 3);
 
   const formattedDate = dateObj.toLocaleDateString('pt-BR');
   const formattedTime = dateObj.toLocaleTimeString('pt-BR', { 
@@ -52,8 +57,8 @@ export const MeasurementItem = ({ item }: { item: Analise }) => {
   return (
     <View className="bg-white rounded-2xl p-4 mb-3 shadow-sm border border-gray-100">
       <View className="flex-row justify-between items-center mb-3">
-        <View className="flex-row items-center gap-2">
-          <Text className="text-lg font-bold text-slate-800">
+        <View className="flex-row items-center gap-2 flex-1 mr-3">
+          <Text numberOfLines={1} ellipsizeMode="middle" style={{ flexShrink: 1 }} className="text-lg font-bold text-slate-800">
             BX-{idMedicaoAPI || item.id}
           </Text>
           <View className={`px-2 py-0.5 rounded-full ${statusConfig.bg}`}>
@@ -63,7 +68,7 @@ export const MeasurementItem = ({ item }: { item: Analise }) => {
           </View>
         </View>
         <Text className="text-2xl font-bold text-slate-800">
-          {mmValue.toFixed(2)} <Text className="text-sm font-normal text-gray-400">mm</Text>
+          {isEstimated ? '≈ ' : ''}{mmValue.toFixed(2)} <Text className="text-sm font-normal text-gray-400">mm</Text>
         </Text>
       </View>
       
@@ -71,6 +76,7 @@ export const MeasurementItem = ({ item }: { item: Analise }) => {
         <Calendar size={14} color="#9CA3AF" />
         <Text className="text-xs text-gray-500">{formattedDate}</Text>
         <Text className="text-xs text-gray-500 ml-1">{formattedTime}</Text>
+        {isContour && <Text className="text-xs text-gray-500 ml-1">· Contorno</Text>}
       </View>
     </View>
   );

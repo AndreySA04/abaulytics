@@ -39,3 +39,11 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+/medicoes.db
+
+# Local data and processing artifacts
+.env
+api/*.db
+api/debug/
+**/__pycache__/

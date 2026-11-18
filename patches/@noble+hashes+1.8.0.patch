@@ -1,0 +1,57 @@
+diff --git a/node_modules/@noble/hashes/esm/utils.js b/node_modules/@noble/hashes/esm/utils.js
+index 9614c8e..3f2e884 100644
+--- a/node_modules/@noble/hashes/esm/utils.js
++++ b/node_modules/@noble/hashes/esm/utils.js
+@@ -163,18 +163,21 @@ export function hexToBytes(hex) {
+  * Call of async fn will return Promise, which will be fullfiled only on
+  * next scheduler queue processing step and this is exactly what we need.
+  */
+-export const nextTick = async () => { };
++export const nextTick = () => new Promise((resolve) => setTimeout(resolve, 0));
+ /** Returns control to thread each 'tick' ms to avoid blocking. */
+ export async function asyncLoop(iters, tick, cb) {
+     let ts = Date.now();
+     for (let i = 0; i < iters; i++) {
+         cb(i);
++        // Check the scheduler once per small batch, not on every KDF iteration.
++        if ((i & 31) !== 31 && i !== iters - 1) continue;
+         // Date.now() is not monotonic, so in case if clock goes backwards we return return control too
+         const diff = Date.now() - ts;
+         if (diff >= 0 && diff < tick)
+             continue;
+         await nextTick();
+-        ts += diff;
++        // Exclude scheduler wait time from the next CPU time slice.
++        ts = Date.now();
+     }
+ }
+ /**
+diff --git a/node_modules/@noble/hashes/utils.js b/node_modules/@noble/hashes/utils.js
+index aed9199..8701131 100644
+--- a/node_modules/@noble/hashes/utils.js
++++ b/node_modules/@noble/hashes/utils.js
+@@ -193,19 +193,22 @@ function hexToBytes(hex) {
+  * Call of async fn will return Promise, which will be fullfiled only on
+  * next scheduler queue processing step and this is exactly what we need.
+  */
+-const nextTick = async () => { };
++const nextTick = () => new Promise((resolve) => setTimeout(resolve, 0));
+ exports.nextTick = nextTick;
+ /** Returns control to thread each 'tick' ms to avoid blocking. */
+ async function asyncLoop(iters, tick, cb) {
+     let ts = Date.now();
+     for (let i = 0; i < iters; i++) {
+         cb(i);
++        // Check the scheduler once per small batch, not on every KDF iteration.
++        if ((i & 31) !== 31 && i !== iters - 1) continue;
+         // Date.now() is not monotonic, so in case if clock goes backwards we return return control too
+         const diff = Date.now() - ts;
+         if (diff >= 0 && diff < tick)
+             continue;
+         await (0, exports.nextTick)();
+-        ts += diff;
++        // Exclude scheduler wait time from the next CPU time slice.
++        ts = Date.now();
+     }
+ }
+ /**

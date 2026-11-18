@@ -15,6 +15,7 @@ import * as SecureStore from 'expo-secure-store';
 import { getAnalysesCountToday, getCriticalAnalysesCountToday, getRecentAnalyses } from "../../src/database/analysesRepository";
 import { getProfile } from "../../src/database/userRepository";
 import { getAnalysisDetails } from "../../src/utils/analyze";
+import { logout } from "../../src/security/session";
 
 const getFormattedCurrentDate = () => {
   const date = new Date();
@@ -78,8 +79,9 @@ export default function HomeScreen() {
     }, [])
   );
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setProfileMenuOpen(false);
+    await logout();
     router.replace("/(auth)/");
   };
   
@@ -162,7 +164,7 @@ export default function HomeScreen() {
         >
           <View>
             <Text className="text-[#0f172a] text-lg font-bold">
-              Nova Medição
+              Nova medição de bancada
             </Text>
             <Text className="text-slate-500 text-sm mt-1">
               Registre os dados para analisar
@@ -171,6 +173,11 @@ export default function HomeScreen() {
           <View className="bg-[#ff6b00] p-4 rounded-xl shadow-sm">
             <TrendingUp size={24} color="white" />
           </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity accessibilityRole="button" className="mx-6 mt-3 rounded-xl bg-slate-900 p-4"
+          onPress={() => router.push('/producao')}>
+          <Text className="text-center font-semibold text-white">Acessar Produção com crachá</Text>
         </TouchableOpacity>
 
         <View className="mt-6 mb-4 px-6">
@@ -236,10 +243,10 @@ export default function HomeScreen() {
 
                   <View className="items-end">
                     <Text className={`font-bold text-base ${valueColor}`}>
-                      {details.mm.toFixed(2)} mm
+                      {details.isEstimated ? '≈ ' : ''}{details.mm.toFixed(2)} mm
                     </Text>
                     <Text className="text-slate-400 text-[10px] font-bold mt-1 tracking-wider">
-                      ABAULAMENTO
+                      {details.isContour ? 'CONTORNO' : 'ABAULAMENTO'}
                     </Text>
                   </View>
                 </View>
