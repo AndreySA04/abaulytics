@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from statistics import median, stdev
 
+from .industrial_store import micrometers
 from .main import HTTPException, MAX_FILE_BYTES, cv2, decode_image, measure_sheet, np
 
 
@@ -65,7 +66,7 @@ def capture_results(manifest):
                     image = decode_image(data, mime)
                     previous = previous_measurement(image, width)
                     amplitude_px, chord_px, _ = measure_sheet(image, allow_front_view=False)
-                    current = round(amplitude_px * width / chord_px, 2)
+                    current = micrometers(amplitude_px * width / chord_px) / 1000
                 except HTTPException as error:
                     if error.status_code not in (415, 422):
                         raise

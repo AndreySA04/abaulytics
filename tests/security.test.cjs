@@ -269,6 +269,7 @@ test('local security and privacy integration on real SQLite', async t => {
     await generate([row, contour], '2026-01-01', '2026-12-31');
     assert(printedHtml.includes('9.25 mm'));
     assert(printedHtml.includes('≈ 83.63 mm (contorno)'));
+    assert(printedHtml.includes('>Crítico</span>'));
     assert(printedHtml.includes('&lt;script&gt;'));
     assert(!printedHtml.includes('<img src=x>'));
     assert(!printedHtml.includes('Invalid Date'));
@@ -279,6 +280,30 @@ test('local security and privacy integration on real SQLite', async t => {
     await assert.rejects(() => generate([row], '2026-01-01', '2026-12-31'));
     assert.equal(deletedFiles.length, before + 1);
     sharingFails = false;
+  });
+  await t.test('bench quality uses E2 thresholds for new and stored measurements', async () => {
+    const { getAnalysisDetails, formatMeasurementMm, PX_TO_MM_RATIO } = load('src/utils/analyze.ts');
+    const userId = String(second.id);
+    const before = await analyses.getCriticalAnalysesCountToday(userId);
+    const cases = [
+      [11.799, 'sucesso', 'SUCESSO'],
+      [11.80, 'atencao', 'ATENÇÃO'],
+      [12.00, 'atencao', 'ATENÇÃO'],
+      [12.001, 'critico', 'CRÍTICO'],
+    ];
+    for (const [mm, classificacao, expected] of cases) {
+      const legacy = { status: 'sucesso', abaulamento_mm: mm };
+      assert.equal(getAnalysisDetails(JSON.stringify(legacy)).classification, expected);
+      const reading = JSON.stringify({ ...legacy, classificacao });
+      assert.equal(getAnalysisDetails(reading).classification, expected);
+      await analyses.salvarNoBanco(reading);
+    }
+    await analyses.salvarNoBanco(JSON.stringify({ status: 'sucesso', abaulamento_mm: 44.17 }));
+    assert.equal(await analyses.getCriticalAnalysesCountToday(userId), before + 2);
+    assert.equal(getAnalysisDetails(JSON.stringify({ abaulamento_px: 13 / PX_TO_MM_RATIO })).classification, 'CRÍTICO');
+    assert.equal(getAnalysisDetails('{"status":"sucesso"}').classification, null);
+    assert.equal(getAnalysisDetails('{"erro":"imagem recusada"}').classification, null);
+    assert.equal(formatMeasurementMm(12.001), '12.001');
   });
   await t.test('production requires HTTPS and configured privacy contacts for new consent', async () => {
     const { analysisUrl } = load('src/privacy/api.ts');

@@ -8,9 +8,9 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { File } from 'expo-file-system';
 import { fetch } from 'expo/fetch';
 import { salvarNoBanco } from "../../src/database/analysesRepository";
-import { Camera, CheckCircle2, RefreshCcw, Hash } from "lucide-react-native";
+import { Camera, CheckCircle2, RefreshCcw, Hash, TriangleAlert } from "lucide-react-native";
 import { useIsFocused, useRouter } from "expo-router";
-import { getAnalysisDetails } from "../../src/utils/analyze";
+import { formatMeasurementMm, getAnalysisDetails, measurementPresentation } from "../../src/utils/analyze";
 
 export default function AnalisarCaixaScreen() {
   const router = useRouter();
@@ -116,7 +116,8 @@ export default function AnalisarCaixaScreen() {
     }
   };
 
-  const detalhes = resultado ? getAnalysisDetails(resultado) : { mm: 0, id: '-', isContour: false };
+  const detalhes = resultado ? getAnalysisDetails(resultado) : { mm: null, id: null, isContour: false, classification: null };
+  const quality = measurementPresentation(detalhes.classification);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
@@ -193,16 +194,18 @@ export default function AnalisarCaixaScreen() {
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.75)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
           <View className="w-full bg-[#1e293b] rounded-[32px] p-6 border border-[#334155] items-center" style={{ elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20 }}>
-            <View className="p-4 rounded-full mb-4" style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)' }}>
-              <CheckCircle2 size={40} color="#22c55e" />
+            <View className="p-4 rounded-full mb-4" style={{ backgroundColor: `${quality.highlight}26` }}>
+              {detalhes.classification === 'SUCESSO'
+                ? <CheckCircle2 size={40} color={quality.highlight} />
+                : <TriangleAlert size={40} color={quality.highlight} />}
             </View>
             
-            <Text className="text-white text-xl font-bold mb-1">Análise Concluída</Text>
+            <Text className="text-xl font-bold mb-1" style={{ color: quality.highlight }}>{quality.label}</Text>
             
             <View className="flex-row items-center mb-6 mt-1">
               <Hash size={14} color="#94a3b8" />
               <Text selectable style={{ flexShrink: 1 }} className="text-slate-400 text-sm ml-1 font-medium">
-                Medição BX-{detalhes.id}
+                Medição BX-{detalhes.id ?? '-'}
               </Text>
             </View>
             
@@ -211,8 +214,8 @@ export default function AnalisarCaixaScreen() {
                 {detalhes.isContour ? 'Curvatura do contorno' : 'Abaulamento estimado'}
               </Text>
               <View className="flex-row items-end justify-center">
-                <Text className="text-white text-6xl font-black tracking-tighter" style={{ color: '#f97316' }}>
-                  {detalhes.mm.toFixed(2)}
+                <Text className="text-6xl font-black tracking-tighter" style={{ color: quality.highlight }}>
+                  {formatMeasurementMm(detalhes.mm)}
                 </Text>
                 <Text className="text-slate-400 text-xl font-bold ml-2 mb-2">
                   mm

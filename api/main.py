@@ -16,6 +16,7 @@ from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from api.industrial_store import micrometers
 
 MAX_FILE_BYTES = 10 * 1024 * 1024
 MAX_BODY_BYTES = MAX_FILE_BYTES + 64 * 1024
@@ -28,6 +29,8 @@ MAX_PROFILE_THICKNESS_RATIO = 0.15
 MIN_EDGE_CONTRAST = 16
 PROFILE_MEASUREMENT_METHOD = "flecha_perfil_v1"
 CONTOUR_MEASUREMENT_METHOD = "flecha_contorno_v1"
+BENCH_LIMIT_UM = 12_000  # E2 RN01/RN02
+BENCH_WARNING_UM = BENCH_LIMIT_UM - 200  # Use the E2 RNF01 error limit as a bench warning band.
 slots = threading.BoundedSemaphore(2)
 collector_slots = threading.BoundedSemaphore(2)
 COLLECTOR_MAX_BODY_BYTES = 2 * MAX_FILE_BYTES + 64 * 1024
@@ -443,6 +446,14 @@ def measure_sheet(img, *, allow_front_view=True):
     return amplitude_px, chord_px, method
 
 
+def classify_bench_measurement(deflection_um):
+    if deflection_um > BENCH_LIMIT_UM:
+        return "critico"
+    if deflection_um >= BENCH_WARNING_UM:
+        return "atencao"
+    return "sucesso"
+
+
 @app.post("/api/analisar-chapa")
 def analisar_chapa(response: Response, file: UploadFile = File(...), largura_real_mm: float = Form(...)):
     started = perf_counter()
@@ -457,7 +468,7 @@ def analisar_chapa(response: Response, file: UploadFile = File(...), largura_rea
         decoded = perf_counter()
 
         amplitude_px, chord_px, method = measure_sheet(img)
-        amplitude_mm = round(amplitude_px * width_mm / chord_px, 2)
+        amplitude_um = micrometers(amplitude_px * width_mm / chord_px)
         response.headers['Server-Timing'] = (
             f'decode;dur={(decoded - started) * 1000:.1f}, '
             f'profile;dur={(perf_counter() - decoded) * 1000:.1f}'
@@ -466,7 +477,8 @@ def analisar_chapa(response: Response, file: UploadFile = File(...), largura_rea
         return {
             "status": "sucesso", "id_medicao": uuid.uuid4().hex,
             "data": datetime.now(timezone.utc).isoformat(),
-            "abaulamento_px": round(amplitude_px, 3), "abaulamento_mm": amplitude_mm,
+            "abaulamento_px": round(amplitude_px, 3), "abaulamento_mm": amplitude_um / 1000,
+            "classificacao": classify_bench_measurement(amplitude_um),
             "metodo_medicao": method,
         }
     except HTTPException:

@@ -15,6 +15,8 @@ python -m api.validate_bench
 
 O último comando inicia a API e o coletor em processos locais separados, simula 100 chapas, acompanha as atualizações HTTP e confere o PDF, o CSV e o webhook. O ensaio usa credenciais descartáveis e bancos temporários.
 
+Na medição manual de bancada, o resultado é arredondado a 1 µm conforme RN01/RN02. A bancada exibe **Sucesso** abaixo de 11,800 mm, **Atenção** entre 11,800 e 12,000 mm inclusive e **Crítico** acima de 12,000 mm. A faixa de Atenção usa os 0,20 mm do RNF01 como margem de aviso. As classificações de produção seguem a regra Conforme até 12,000 mm e Não conforme acima desse limite.
+
 ### Usar o app com a linha simulada
 
 1. Use `.env.example` como referência para `.env`. Em `EXPO_PUBLIC_API_URL`, informe o endereço da API acessível pelo aparelho. Fora do desenvolvimento, o app exige HTTPS. Configure responsável e contato antes de distribuir. `CORS_ORIGINS` vazio atende o app nativo.

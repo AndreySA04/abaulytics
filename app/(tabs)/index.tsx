@@ -14,7 +14,7 @@ import { Analise } from "../../src/types/analyses";
 import * as SecureStore from 'expo-secure-store';
 import { getAnalysesCountToday, getCriticalAnalysesCountToday, getRecentAnalyses } from "../../src/database/analysesRepository";
 import { getProfile } from "../../src/database/userRepository";
-import { getAnalysisDetails } from "../../src/utils/analyze";
+import { formatMeasurementMm, getAnalysisDetails, measurementPresentation } from "../../src/utils/analyze";
 import { logout } from "../../src/security/session";
 
 const getFormattedCurrentDate = () => {
@@ -202,9 +202,7 @@ export default function HomeScreen() {
           ) : (
             recentActivities.map((item) => {
               const details = getAnalysisDetails(item.result);
-
-              const isSuccess = details.status === "sucesso";
-              const isWarning = details.status === "atencao";
+              const quality = measurementPresentation(details.classification);
 
               const safeDateString = item.created_at.replace(' ', 'T');
               const dateObj = new Date(safeDateString);
@@ -213,28 +211,24 @@ export default function HomeScreen() {
 
               const formattedTime = dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-              const iconBgColor = isSuccess ? "bg-green-100" : isWarning ? "bg-yellow-100" : "bg-red-100";
-              const iconColor = isSuccess ? "#22c55e" : isWarning ? "#eab308" : "#ef4444";
-              const valueColor = isSuccess ? "text-green-600" : isWarning ? "text-yellow-600" : "text-red-600";
-
               return (
                 <View
                   key={item.id}
                   className="bg-white p-4 rounded-2xl mb-3 shadow-sm flex-row items-center border border-slate-100"
                 >
                   <View
-                    className={`h-12 w-12 rounded-full items-center justify-center mr-4 ${iconBgColor}`}
+                    className={`h-12 w-12 rounded-full items-center justify-center mr-4 ${quality.background}`}
                   >
-                    {isSuccess ? (
-                      <CheckCircle2 size={24} color={iconColor} />
+                    {details.classification === 'SUCESSO' ? (
+                      <CheckCircle2 size={24} color={quality.color} />
                     ) : (
-                      <TriangleAlert size={24} color={iconColor} />
+                      <TriangleAlert size={24} color={quality.color} />
                     )}
                   </View>
 
                   <View className="flex-1">
                     <Text className="text-[#0f172a] font-bold text-base">
-                      BX-{details.id || item.id}
+                      BX-{details.id ?? item.id}
                     </Text>
                     <Text className="text-slate-400 text-sm mt-0.5">
                       {formattedTime}
@@ -242,11 +236,11 @@ export default function HomeScreen() {
                   </View>
 
                   <View className="items-end">
-                    <Text className={`font-bold text-base ${valueColor}`}>
-                      {details.isEstimated ? '≈ ' : ''}{details.mm.toFixed(2)} mm
+                    <Text className={`font-bold text-base ${quality.text}`}>
+                      {details.isEstimated ? '≈ ' : ''}{formatMeasurementMm(details.mm)}{details.mm !== null && ' mm'}
                     </Text>
-                    <Text className="text-slate-400 text-[10px] font-bold mt-1 tracking-wider">
-                      {details.isContour ? 'CONTORNO' : 'ABAULAMENTO'}
+                    <Text className={`text-[10px] font-bold mt-1 ${quality.text}`}>
+                      {quality.label}{details.isContour && ' · Contorno'}
                     </Text>
                   </View>
                 </View>

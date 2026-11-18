@@ -81,6 +81,7 @@ class AnalysisTests(unittest.TestCase):
         self.assertEqual(status, 422, result)
         self.assertIn("Refaça a foto", result["erro"])
         self.assertNotIn("abaulamento_mm", result)
+        self.assertNotIn("classificacao", result)
 
     def test_success_and_no_disk_writes(self):
         with patch("cv2.imwrite", side_effect=AssertionError("No image persistence")), patch("sqlite3.connect", side_effect=AssertionError("No DB persistence")):
@@ -89,6 +90,7 @@ class AnalysisTests(unittest.TestCase):
         self.assertEqual(result["status"], "sucesso")
         self.assertEqual(result["abaulamento_px"], 0)
         self.assertEqual(result["abaulamento_mm"], 0)
+        self.assertEqual(result["classificacao"], "sucesso")
         self.assertEqual(result["metodo_medicao"], "flecha_perfil_v1")
         self.assertIsInstance(result["id_medicao"], str)
         self.assertTrue(result["data"].endswith("+00:00"))
@@ -114,9 +116,26 @@ class AnalysisTests(unittest.TestCase):
         status, doubled = self.call_photo(photo, "1000")
         self.assertEqual(status, 200, doubled)
         self.assertEqual(doubled["abaulamento_px"], result["abaulamento_px"])
-        single_cents = round(result["abaulamento_mm"] * 100)
-        double_cents = round(doubled["abaulamento_mm"] * 100)
-        self.assertLessEqual(abs(double_cents - 2 * single_cents), 1)
+        single_um = round(result["abaulamento_mm"] * 1000)
+        double_um = round(doubled["abaulamento_mm"] * 1000)
+        self.assertLessEqual(abs(double_um - 2 * single_um), 1)
+
+    def test_quality_thresholds_apply_after_rounding_to_micrometers(self):
+        cases = (
+            (11.7994, 11.799, "sucesso"),
+            (11.7995, 11.800, "atencao"),
+            (11.99, 11.99, "atencao"),
+            (12.0004, 12.000, "atencao"),
+            (12.0005, 12.001, "critico"),
+            (12.01, 12.01, "critico"),
+        )
+        for raw_mm, measured_mm, classification in cases:
+            with self.subTest(raw_mm=raw_mm), patch("main.measure_sheet", return_value=(raw_mm, 1, "flecha_perfil_v1")):
+                status, result = self.call(width="1")
+                self.assertEqual(status, 200, result)
+                self.assertEqual(result["status"], "sucesso")
+                self.assertEqual(result["abaulamento_mm"], measured_mm)
+                self.assertEqual(result["classificacao"], classification)
 
     def test_peak_near_tip_of_rotated_profile(self):
         def profile(t):

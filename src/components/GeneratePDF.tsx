@@ -5,7 +5,7 @@ import { adoptTemporaryFile } from '../privacy/files';
 const escapeHtml = (value: unknown) => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { CONTOUR_MEASUREMENT_METHOD, isEstimatedMeasurement, PX_TO_MM_RATIO } from '../utils/analyze';
+import { formatMeasurementMm, getAnalysisDetails, measurementPresentation } from '../utils/analyze';
 
 export interface AnalisePDF {
   id: number;
@@ -15,46 +15,14 @@ export interface AnalisePDF {
   created_at: string;
 }
 
-const getStatusColor = (status: string) => {
-  const normalized = status.toUpperCase().trim();
-  if (normalized === 'SUCESSO') return '#10b981';
-  if (normalized === 'ATENÇÃO' || normalized === 'ATENCAO') return '#f59e0b';
-  if (normalized === 'CRÍTICO' || normalized === 'CRITICO') return '#ef4444';
-  return '#64748b';
-};
-
 const GeneratePDF = async(analyses: AnalisePDF[], startDate: string, endDate: string) => {
   const user = await requireUser();
   if (analyses.some(item => item.user_id !== user.id)) throw new Error('Acesso não autorizado.');
   const formatDateStr = (str: string) => str.split('-').reverse().join('/');
   
   const tableRowsHtml = analyses.map((item) => {
-    let pxValue = 0;
-    let explicitMm: number | null = null;
-    let isEstimated = false;
-    let isContour = false;
-    let apiStatus = 'DESCONHECIDO';
-    let idMedicaoAPI = null;
-
-    const rawData = item.result || item.resultado;
-
-    try {
-      if (rawData) {
-        const data = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
-        isEstimated = isEstimatedMeasurement(data.metodo_medicao);
-        isContour = data.metodo_medicao === CONTOUR_MEASUREMENT_METHOD;
-        pxValue = parseFloat(data.abaulamento_px) || 0;
-        if (typeof data.abaulamento_mm === 'number' && Number.isFinite(data.abaulamento_mm)) explicitMm = data.abaulamento_mm;
-        apiStatus = data.status || 'DESCONHECIDO';
-        idMedicaoAPI = data.id_medicao;
-      }
-    } catch (error) {
-      console.error("Erro ao ler JSON no PDF para o item ID:", item.id, error);
-    }
-
-    const mmValue = explicitMm ?? pxValue * PX_TO_MM_RATIO;
-    const badgeColor = getStatusColor(apiStatus);
-    const label = apiStatus.toUpperCase().trim();
+    const { id, mm, isEstimated, isContour, classification } = getAnalysisDetails(item.result || item.resultado || '');
+    const quality = measurementPresentation(classification);
 
     const date = item.created_at.replace(' ', 'T');
     const safeDateString = /(?:Z|[+-]\d{2}:\d{2})$/.test(date) ? date : date + 'Z';
@@ -63,14 +31,14 @@ const GeneratePDF = async(analyses: AnalisePDF[], startDate: string, endDate: st
     const dateFormatted = dateObj.toLocaleDateString('pt-BR');
     const timeFormatted = dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     
-    const displayId = idMedicaoAPI || item.id;
+    const displayId = id ?? item.id;
 
     return `
       <tr>
         <td><strong>BX-${escapeHtml(displayId)}</strong></td>
         <td>${dateFormatted} às ${timeFormatted}</td>
-        <td>${isEstimated ? '≈ ' : ''}${mmValue.toFixed(2)} mm${isContour ? ' (contorno)' : ''}</td>
-        <td><span class="status-badge" style="background-color: ${badgeColor}">${escapeHtml(label)}</span></td>
+        <td>${isEstimated ? '≈ ' : ''}${formatMeasurementMm(mm)}${mm === null ? '' : ' mm'}${isContour ? ' (contorno)' : ''}</td>
+        <td><span class="status-badge" style="background-color: ${quality.color}">${escapeHtml(quality.label)}</span></td>
       </tr>
     `;
   }).join('');
@@ -117,7 +85,7 @@ const GeneratePDF = async(analyses: AnalisePDF[], startDate: string, endDate: st
               <th>ID da Caixa</th>
               <th>Data / Hora</th>
               <th>Abaulamento (mm)</th>
-              <th>Status</th>
+              <th>Classificação</th>
             </tr>
           </thead>
           <tbody>

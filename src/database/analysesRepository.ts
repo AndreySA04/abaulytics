@@ -5,6 +5,7 @@ import { requireConsent } from '../privacy/repository';
 import { transaction } from './transaction';
 import { appendAudit } from '../security/audit';
 import { POLICY_VERSION, PURPOSE } from '../privacy/policy';
+import { getAnalysisDetails } from '../utils/analyze';
 
 export async function salvarNoBanco(result: string): Promise<void> {
     const user = await requireConsent();
@@ -63,18 +64,7 @@ export async function getCriticalAnalysesCountToday(userId: string | null): Prom
     [userId, `${today}%`]
   );
   
-  const criticalCount = todayAnalyses.filter(item => {
-    try {
-      const data = JSON.parse(item.result);
-      const status = (data.status || '').toUpperCase().trim();
-      return status === 'CRÍTICO' || status === 'CRITICO';
-    } catch (error) {
-      console.error("Erro ao ler JSON no getCriticalAnalysesCountToday:", error);
-      return false;
-    }
-  }).length;
-  
-  return criticalCount;
+  return todayAnalyses.filter(item => getAnalysisDetails(item.result).classification === 'CRÍTICO').length;
 }
 
 export async function getAnalysesByDateRange(
